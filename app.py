@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import io
@@ -16,7 +17,6 @@ def format_cpa(cpa_value, donatur_count):
     return "N/A"
 
 # ================= SESSION STATE INIT =================
-# Menyimpan list data per kanal untuk append log
 if 'log_ads' not in st.session_state: st.session_state['log_ads'] = []
 if 'log_org' not in st.session_state: st.session_state['log_org'] = []
 if 'log_wa' not in st.session_state: st.session_state['log_wa'] = []
@@ -68,7 +68,7 @@ tab_ads, tab_org, tab_wa, tab_email, tab_sum, tab_goal, tab_ab = st.tabs([
 # ================= TAB: PAID ADS =================
 with tab_ads:
     st.header("Kanal Paid Ads")
-    with st.form("form_ads"):
+    with st.form("form_ads", clear_on_submit=True):
         nama_campaign = st.text_input("Nama Campaign", value=f"Campaign Ads #{len(st.session_state['log_ads']) + 1}")
         c1, c2 = st.columns(2)
         budget_ads = c1.number_input("Budget Iklan (Rp)", min_value=0, value=int(st.session_state['budget_ads']), step=500000)
@@ -80,55 +80,65 @@ with tab_ads:
         base_cr_ads = c2.number_input("Target CR Ads (%)", min_value=0.0, value=float(st.session_state['base_cr_ads']), step=0.1, format="%g")
         avg_don_ads = c2.number_input("Rata-rata Donasi Ads (Rp)", min_value=0, value=int(st.session_state['avg_don_ads']), step=10000)
 
-        submit_ads = st.form_submit_button("➕ Tambahkan Kalkulasi Campaign")
-        
-        if submit_ads:
-            actual_cpm = base_cpm * (1 + risk_cpm)
-            actual_cr = (base_cr_ads / 100) * (1 - risk_cr)
-            imp = safe_div(budget_ads, actual_cpm) * 1000
-            reach = safe_div(imp, freq_ads)
-            clicks = imp * (ctr_ads / 100)
-            lp_views = clicks * (lp_rate_ads / 100)
-            donatur = lp_views * actual_cr
-            dana = donatur * avg_don_ads
-            roas = safe_div(dana, budget_ads)
-            
+        if st.form_submit_button("➕ Tambahkan Kalkulasi Campaign"):
             st.session_state['log_ads'].append({
-                "Nama Campaign": nama_campaign,
-                "Budget (Rp)": budget_ads, "CPM (Rp)": base_cpm, "Freq": freq_ads, 
-                "CTR (%)": ctr_ads, "LP View (%)": lp_rate_ads, "CR (%)": base_cr_ads, 
-                "Avg Donasi (Rp)": avg_don_ads,
-                "_Imp": imp, "_Reach": reach, "_Clicks": clicks, "_LPViews": lp_views, 
-                "_Donatur": donatur, "_Dana": dana
+                "Nama Campaign": nama_campaign, "Budget (Rp)": budget_ads, "CPM (Rp)": base_cpm, 
+                "Freq": freq_ads, "CTR (%)": ctr_ads, "LP View (%)": lp_rate_ads, 
+                "CR (%)": base_cr_ads, "Avg Donasi (Rp)": avg_don_ads
             })
+            st.rerun()
 
     if st.session_state['log_ads']:
         st.divider()
         st.subheader("Tabel Log Campaign - Paid Ads")
+        
         df_ads = pd.DataFrame(st.session_state['log_ads'])
+        # Kalkulasi on-the-fly untuk kolom disabled
+        df_ads['_actual_cpm'] = df_ads['CPM (Rp)'] * (1 + risk_cpm)
+        df_ads['_actual_cr'] = (df_ads['CR (%)'] / 100) * (1 - risk_cr)
+        df_ads['Imp'] = np.where(df_ads['_actual_cpm'] > 0, (df_ads['Budget (Rp)'] / df_ads['_actual_cpm']) * 1000, 0)
+        df_ads['Reach'] = np.where(df_ads['Freq'] > 0, df_ads['Imp'] / df_ads['Freq'], 0)
+        df_ads['Klik'] = df_ads['Imp'] * (df_ads['CTR (%)'] / 100)
+        df_ads['_LPViews'] = df_ads['Klik'] * (df_ads['LP View (%)'] / 100)
+        df_ads['Donatur'] = df_ads['_LPViews'] * df_ads['_actual_cr']
+        df_ads['CPA (Rp)'] = np.where(df_ads['Donatur'] > 0, df_ads['Budget (Rp)'] / df_ads['Donatur'], 0)
+        df_ads['Dana Terhimpun (Rp)'] = df_ads['Donatur'] * df_ads['Avg Donasi (Rp)']
+        df_ads['ROAS (x)'] = np.where(df_ads['Budget (Rp)'] > 0, df_ads['Dana Terhimpun (Rp)'] / df_ads['Budget (Rp)'], 0)
+
+        cols_order = ["Nama Campaign", "Budget (Rp)", "CPM (Rp)", "Freq", "CTR (%)", "LP View (%)", "CR (%)", "Avg Donasi (Rp)", "Reach", "Klik", "Donatur", "CPA (Rp)", "Dana Terhimpun (Rp)", "ROAS (x)"]
+        df_display = df_ads[cols_order]
+
+        col_config = {
+            "Budget (Rp)": st.column_config.NumberColumn(format="Rp %d"),
+            "CPM (Rp)": st.column_config.NumberColumn(format="Rp %d"),
+            "Avg Donasi (Rp)": st.column_config.NumberColumn(format="Rp %d"),
+            "Reach": st.column_config.NumberColumn(format="%d", disabled=True),
+            "Klik": st.column_config.NumberColumn(format="%d", disabled=True),
+            "Donatur": st.column_config.NumberColumn(format="%.1f", disabled=True),
+            "CPA (Rp)": st.column_config.NumberColumn(format="Rp %d", disabled=True),
+            "Dana Terhimpun (Rp)": st.column_config.NumberColumn(format="Rp %d", disabled=True),
+            "ROAS (x)": st.column_config.NumberColumn(format="%.2f", disabled=True)
+        }
+
+        edited_df = st.data_editor(df_display, column_config=col_config, use_container_width=True, hide_index=True, num_rows="dynamic")
         
-        # Display table formatted
-        display_df = df_ads[["Nama Campaign", "Budget (Rp)", "CPM (Rp)", "Freq", "CTR (%)", "LP View (%)", "CR (%)", "Avg Donasi (Rp)"]].copy()
-        display_df["Reach"] = df_ads["_Reach"].map("{:,.0f}".format)
-        display_df["Klik"] = df_ads["_Clicks"].map("{:,.0f}".format)
-        display_df["Donatur"] = df_ads["_Donatur"].map("{:,.1f}".format)
-        display_df["Dana Terhimpun (Rp)"] = df_ads["_Dana"].map("Rp {:,.0f}".format)
-        display_df["ROAS"] = (df_ads["_Dana"] / df_ads["Budget (Rp)"]).fillna(0).map("{:.2f} x".format)
+        # Ekstrak kolom input untuk mengecek perubahan
+        input_cols = ["Nama Campaign", "Budget (Rp)", "CPM (Rp)", "Freq", "CTR (%)", "LP View (%)", "CR (%)", "Avg Donasi (Rp)"]
+        new_inputs = edited_df[input_cols].to_dict('records')
         
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
-        
-        if st.button("🗑️ Hapus Semua Data Ads"):
-            st.session_state['log_ads'] = []
+        if new_inputs != st.session_state['log_ads']:
+            st.session_state['log_ads'] = new_inputs
             st.rerun()
 
-        # Aggregate Calcs
-        tot_budget_ads = df_ads["Budget (Rp)"].sum()
-        tot_imp_ads = df_ads["_Imp"].sum()
-        tot_reach_ads = df_ads["_Reach"].sum()
-        tot_clicks_ads = df_ads["_Clicks"].sum()
-        tot_lp_ads = df_ads["_LPViews"].sum()
-        tot_donatur_ads = df_ads["_Donatur"].sum()
-        tot_dana_ads = df_ads["_Dana"].sum()
+        tot_budget_ads = edited_df["Budget (Rp)"].sum()
+        tot_reach_ads = edited_df["Reach"].sum()
+        tot_clicks_ads = edited_df["Klik"].sum()
+        tot_donatur_ads = edited_df["Donatur"].sum()
+        tot_dana_ads = edited_df["Dana Terhimpun (Rp)"].sum()
+        
+        # Kalkulasi balik dari dataframe terupdate
+        tot_imp_ads = df_ads['Imp'].sum()
+        tot_lp_ads = df_ads['_LPViews'].sum()
         
         tot_cpc_ads = safe_div(tot_budget_ads, tot_clicks_ads)
         tot_cpa_ads = safe_div(tot_budget_ads, tot_donatur_ads)
@@ -162,7 +172,7 @@ with tab_ads:
 # ================= TAB: ORGANIK =================
 with tab_org:
     st.header("Kanal Organic Content")
-    with st.form("form_org"):
+    with st.form("form_org", clear_on_submit=True):
         nama_campaign_org = st.text_input("Nama Campaign", value=f"Campaign Organik #{len(st.session_state['log_org']) + 1}")
         c1, c2 = st.columns(2)
         reach_org_in = c1.number_input("Estimasi Reach Organik", min_value=0, value=int(st.session_state['reach_org']), step=5000)
@@ -174,34 +184,48 @@ with tab_org:
         avg_don_org = c2.number_input("Rata-rata Donasi Organik (Rp)", min_value=0, value=int(st.session_state['avg_don_org']), step=25000)
 
         if st.form_submit_button("➕ Tambahkan Kalkulasi Organik"):
-            actual_cr = (base_cr_org / 100) * (1 - risk_cr)
-            donatur = lc_org * actual_cr
-            dana = donatur * avg_don_org
-            
             st.session_state['log_org'].append({
-                "Nama Campaign": nama_campaign_org,
-                "Reach": reach_org_in, "Interactions": interactions_org, "Profile Visits": pv_org, 
-                "Link Clicks": lc_org, "CR (%)": base_cr_org, "Avg Donasi (Rp)": avg_don_org,
-                "_Donatur": donatur, "_Dana": dana
+                "Nama Campaign": nama_campaign_org, "Reach": reach_org_in, "Interactions": interactions_org, 
+                "Profile Visits": pv_org, "Link Clicks": lc_org, "CR (%)": base_cr_org, "Avg Donasi (Rp)": avg_don_org
             })
+            st.rerun()
 
     if st.session_state['log_org']:
         st.divider()
+        st.subheader("Tabel Log Campaign - Organik")
         df_org = pd.DataFrame(st.session_state['log_org'])
-        display_df_org = df_org.copy().drop(columns=["_Donatur", "_Dana"])
-        display_df_org["Donatur"] = df_org["_Donatur"].map("{:,.1f}".format)
-        display_df_org["Dana Terhimpun (Rp)"] = df_org["_Dana"].map("Rp {:,.0f}".format)
-        st.dataframe(display_df_org, use_container_width=True, hide_index=True)
         
-        if st.button("🗑️ Hapus Semua Data Organik"):
-            st.session_state['log_org'] = []
+        df_org['_actual_cr'] = (df_org['CR (%)'] / 100) * (1 - risk_cr)
+        df_org['ER (%)'] = np.where(df_org['Reach'] > 0, (df_org['Interactions'] / df_org['Reach']) * 100, 0)
+        df_org['CTR (%)'] = np.where(df_org['Profile Visits'] > 0, (df_org['Link Clicks'] / df_org['Profile Visits']) * 100, 0)
+        df_org['Donatur'] = df_org['Link Clicks'] * df_org['_actual_cr']
+        df_org['Dana Terhimpun (Rp)'] = df_org['Donatur'] * df_org['Avg Donasi (Rp)']
+
+        cols_order = ["Nama Campaign", "Reach", "Interactions", "Profile Visits", "Link Clicks", "CR (%)", "Avg Donasi (Rp)", "ER (%)", "CTR (%)", "Donatur", "Dana Terhimpun (Rp)"]
+        df_display = df_org[cols_order]
+
+        col_config = {
+            "Avg Donasi (Rp)": st.column_config.NumberColumn(format="Rp %d"),
+            "ER (%)": st.column_config.NumberColumn(format="%.2f", disabled=True),
+            "CTR (%)": st.column_config.NumberColumn(format="%.2f", disabled=True),
+            "Donatur": st.column_config.NumberColumn(format="%.1f", disabled=True),
+            "Dana Terhimpun (Rp)": st.column_config.NumberColumn(format="Rp %d", disabled=True)
+        }
+
+        edited_df = st.data_editor(df_display, column_config=col_config, use_container_width=True, hide_index=True, num_rows="dynamic")
+        
+        input_cols = ["Nama Campaign", "Reach", "Interactions", "Profile Visits", "Link Clicks", "CR (%)", "Avg Donasi (Rp)"]
+        new_inputs = edited_df[input_cols].to_dict('records')
+        
+        if new_inputs != st.session_state['log_org']:
+            st.session_state['log_org'] = new_inputs
             st.rerun()
 
-        tot_reach_org = df_org["Reach"].sum()
-        tot_pv_org = df_org["Profile Visits"].sum()
-        tot_lc_org = df_org["Link Clicks"].sum()
-        tot_donatur_org = df_org["_Donatur"].sum()
-        tot_dana_org = df_org["_Dana"].sum()
+        tot_reach_org = edited_df["Reach"].sum()
+        tot_pv_org = edited_df["Profile Visits"].sum()
+        tot_lc_org = edited_df["Link Clicks"].sum()
+        tot_donatur_org = edited_df["Donatur"].sum()
+        tot_dana_org = edited_df["Dana Terhimpun (Rp)"].sum()
 
         st.subheader("Agregat Total Organik")
         m1, m2, m3, m4 = st.columns(4)
@@ -226,7 +250,7 @@ with tab_org:
 # ================= TAB: WA BLAST =================
 with tab_wa:
     st.header("Kanal WA Blast")
-    with st.form("form_wa"):
+    with st.form("form_wa", clear_on_submit=True):
         nama_campaign_wa = st.text_input("Nama Campaign", value=f"WA Blast #{len(st.session_state['log_wa']) + 1}")
         c1, c2 = st.columns(2)
         db_wa_in = c1.number_input("Total Database WA", min_value=0, value=int(st.session_state['db_wa']), step=1000)
@@ -239,44 +263,56 @@ with tab_wa:
         avg_don_wa = c2.number_input("Rata-rata Donasi WA (Rp)", min_value=0, value=int(st.session_state['avg_don_wa']), step=25000)
 
         if st.form_submit_button("➕ Tambahkan Kalkulasi WA"):
-            actual_cr = (base_cr_wa / 100) * (1 - risk_cr)
-            biaya = db_wa_in * cpc_wa
-            msg_del = db_wa_in * (del_wa / 100)
-            msg_read = msg_del * (read_wa / 100)
-            clicks = msg_read * (ctr_wa / 100)
-            donatur = clicks * actual_cr
-            dana = donatur * avg_don_wa
-            
             st.session_state['log_wa'].append({
-                "Nama Campaign": nama_campaign_wa,
-                "Database": db_wa_in, "Cost/Chat (Rp)": cpc_wa, "Delivered (%)": del_wa, 
-                "Read (%)": read_wa, "CTR (%)": ctr_wa, "CR (%)": base_cr_wa, "Avg Donasi (Rp)": avg_don_wa,
-                "_Biaya": biaya, "_Delivered": msg_del, "_Read": msg_read, "_Clicks": clicks, 
-                "_Donatur": donatur, "_Dana": dana
+                "Nama Campaign": nama_campaign_wa, "Database": db_wa_in, "Cost/Chat (Rp)": cpc_wa, 
+                "Delivered (%)": del_wa, "Read (%)": read_wa, "CTR (%)": ctr_wa, 
+                "CR (%)": base_cr_wa, "Avg Donasi (Rp)": avg_don_wa
             })
+            st.rerun()
 
     if st.session_state['log_wa']:
         st.divider()
+        st.subheader("Tabel Log Campaign - WA Blast")
         df_wa = pd.DataFrame(st.session_state['log_wa'])
-        display_df_wa = df_wa[["Nama Campaign", "Database", "Cost/Chat (Rp)", "Delivered (%)", "Read (%)", "CTR (%)", "CR (%)", "Avg Donasi (Rp)"]].copy()
-        display_df_wa["Biaya Blast (Rp)"] = df_wa["_Biaya"].map("Rp {:,.0f}".format)
-        display_df_wa["Pesan Dibaca"] = df_wa["_Read"].map("{:,.0f}".format)
-        display_df_wa["Donatur"] = df_wa["_Donatur"].map("{:,.1f}".format)
-        display_df_wa["Dana Terhimpun (Rp)"] = df_wa["_Dana"].map("Rp {:,.0f}".format)
-        display_df_wa["ROAS"] = (df_wa["_Dana"] / df_wa["_Biaya"]).fillna(0).map("{:.2f} x".format)
         
-        st.dataframe(display_df_wa, use_container_width=True, hide_index=True)
-        if st.button("🗑️ Hapus Semua Data WA"):
-            st.session_state['log_wa'] = []
+        df_wa['_actual_cr'] = (df_wa['CR (%)'] / 100) * (1 - risk_cr)
+        df_wa['Biaya Blast (Rp)'] = df_wa['Database'] * df_wa['Cost/Chat (Rp)']
+        df_wa['_Delivered'] = df_wa['Database'] * (df_wa['Delivered (%)'] / 100)
+        df_wa['Pesan Dibaca'] = df_wa['_Delivered'] * (df_wa['Read (%)'] / 100)
+        df_wa['_Clicks'] = df_wa['Pesan Dibaca'] * (df_wa['CTR (%)'] / 100)
+        df_wa['Donatur'] = df_wa['_Clicks'] * df_wa['_actual_cr']
+        df_wa['Dana Terhimpun (Rp)'] = df_wa['Donatur'] * df_wa['Avg Donasi (Rp)']
+        df_wa['ROAS (x)'] = np.where(df_wa['Biaya Blast (Rp)'] > 0, df_wa['Dana Terhimpun (Rp)'] / df_wa['Biaya Blast (Rp)'], 0)
+
+        cols_order = ["Nama Campaign", "Database", "Cost/Chat (Rp)", "Delivered (%)", "Read (%)", "CTR (%)", "CR (%)", "Avg Donasi (Rp)", "Biaya Blast (Rp)", "Pesan Dibaca", "Donatur", "Dana Terhimpun (Rp)", "ROAS (x)"]
+        df_display = df_wa[cols_order]
+
+        col_config = {
+            "Cost/Chat (Rp)": st.column_config.NumberColumn(format="Rp %d"),
+            "Avg Donasi (Rp)": st.column_config.NumberColumn(format="Rp %d"),
+            "Biaya Blast (Rp)": st.column_config.NumberColumn(format="Rp %d", disabled=True),
+            "Pesan Dibaca": st.column_config.NumberColumn(format="%d", disabled=True),
+            "Donatur": st.column_config.NumberColumn(format="%.1f", disabled=True),
+            "Dana Terhimpun (Rp)": st.column_config.NumberColumn(format="Rp %d", disabled=True),
+            "ROAS (x)": st.column_config.NumberColumn(format="%.2f", disabled=True)
+        }
+
+        edited_df = st.data_editor(df_display, column_config=col_config, use_container_width=True, hide_index=True, num_rows="dynamic")
+        
+        input_cols = ["Nama Campaign", "Database", "Cost/Chat (Rp)", "Delivered (%)", "Read (%)", "CTR (%)", "CR (%)", "Avg Donasi (Rp)"]
+        new_inputs = edited_df[input_cols].to_dict('records')
+        
+        if new_inputs != st.session_state['log_wa']:
+            st.session_state['log_wa'] = new_inputs
             st.rerun()
 
-        tot_biaya_wa = df_wa["_Biaya"].sum()
-        tot_db_wa = df_wa["Database"].sum()
+        tot_biaya_wa = edited_df["Biaya Blast (Rp)"].sum()
+        tot_db_wa = edited_df["Database"].sum()
         tot_del_wa = df_wa["_Delivered"].sum()
-        tot_read_wa = df_wa["_Read"].sum()
+        tot_read_wa = edited_df["Pesan Dibaca"].sum()
         tot_clicks_wa = df_wa["_Clicks"].sum()
-        tot_donatur_wa = df_wa["_Donatur"].sum()
-        tot_dana_wa = df_wa["_Dana"].sum()
+        tot_donatur_wa = edited_df["Donatur"].sum()
+        tot_dana_wa = edited_df["Dana Terhimpun (Rp)"].sum()
         tot_roas_wa = safe_div(tot_dana_wa, tot_biaya_wa)
 
         st.subheader("Agregat Total WA Blast")
@@ -303,7 +339,7 @@ with tab_wa:
 # ================= TAB: EMAIL MARKETING =================
 with tab_email:
     st.header("Kanal Email Marketing")
-    with st.form("form_em"):
+    with st.form("form_em", clear_on_submit=True):
         nama_campaign_em = st.text_input("Nama Campaign", value=f"Email Campaign #{len(st.session_state['log_em']) + 1}")
         c1, c2 = st.columns(2)
         db_em_in = c1.number_input("Total Database Email", min_value=0, value=int(st.session_state['db_em']), step=5000)
@@ -316,41 +352,55 @@ with tab_email:
         cost_em_in = c2.number_input("Biaya Campaign Email (Rp)", min_value=0, value=int(st.session_state['cost_em']), step=50000)
 
         if st.form_submit_button("➕ Tambahkan Kalkulasi Email"):
-            actual_cr = (base_cr_em / 100) * (1 - risk_cr)
-            msg_del = db_em_in * (del_em / 100)
-            msg_open = msg_del * (open_em / 100)
-            clicks = msg_open * (ctr_em / 100)
-            donatur = clicks * actual_cr
-            dana = donatur * avg_don_em
-            
             st.session_state['log_em'].append({
-                "Nama Campaign": nama_campaign_em,
-                "Database": db_em_in, "Biaya Campaign (Rp)": cost_em_in, "Delivery (%)": del_em, 
-                "Open (%)": open_em, "CTR (%)": ctr_em, "CR (%)": base_cr_em, "Avg Donasi (Rp)": avg_don_em,
-                "_Delivered": msg_del, "_Open": msg_open, "_Clicks": clicks, "_Donatur": donatur, "_Dana": dana
+                "Nama Campaign": nama_campaign_em, "Database": db_em_in, "Biaya Campaign (Rp)": cost_em_in, 
+                "Delivery (%)": del_em, "Open (%)": open_em, "CTR (%)": ctr_em, 
+                "CR (%)": base_cr_em, "Avg Donasi (Rp)": avg_don_em
             })
+            st.rerun()
 
     if st.session_state['log_em']:
         st.divider()
+        st.subheader("Tabel Log Campaign - Email Marketing")
         df_em = pd.DataFrame(st.session_state['log_em'])
-        display_df_em = df_em[["Nama Campaign", "Database", "Biaya Campaign (Rp)", "Delivery (%)", "Open (%)", "CTR (%)", "CR (%)", "Avg Donasi (Rp)"]].copy()
-        display_df_em["Email Dibuka"] = df_em["_Open"].map("{:,.0f}".format)
-        display_df_em["Donatur"] = df_em["_Donatur"].map("{:,.1f}".format)
-        display_df_em["Dana Terhimpun (Rp)"] = df_em["_Dana"].map("Rp {:,.0f}".format)
-        display_df_em["ROAS"] = (df_em["_Dana"] / df_em["Biaya Campaign (Rp)"]).fillna(0).map("{:.2f} x".format)
         
-        st.dataframe(display_df_em, use_container_width=True, hide_index=True)
-        if st.button("🗑️ Hapus Semua Data Email"):
-            st.session_state['log_em'] = []
+        df_em['_actual_cr'] = (df_em['CR (%)'] / 100) * (1 - risk_cr)
+        df_em['_Delivered'] = df_em['Database'] * (df_em['Delivery (%)'] / 100)
+        df_em['Email Dibuka'] = df_em['_Delivered'] * (df_em['Open (%)'] / 100)
+        df_em['Klik'] = df_em['Email Dibuka'] * (df_em['CTR (%)'] / 100)
+        df_em['Donatur'] = df_em['Klik'] * df_em['_actual_cr']
+        df_em['Dana Terhimpun (Rp)'] = df_em['Donatur'] * df_em['Avg Donasi (Rp)']
+        df_em['ROAS (x)'] = np.where(df_em['Biaya Campaign (Rp)'] > 0, df_em['Dana Terhimpun (Rp)'] / df_em['Biaya Campaign (Rp)'], 0)
+
+        cols_order = ["Nama Campaign", "Database", "Biaya Campaign (Rp)", "Delivery (%)", "Open (%)", "CTR (%)", "CR (%)", "Avg Donasi (Rp)", "Email Dibuka", "Klik", "Donatur", "Dana Terhimpun (Rp)", "ROAS (x)"]
+        df_display = df_em[cols_order]
+
+        col_config = {
+            "Biaya Campaign (Rp)": st.column_config.NumberColumn(format="Rp %d"),
+            "Avg Donasi (Rp)": st.column_config.NumberColumn(format="Rp %d"),
+            "Email Dibuka": st.column_config.NumberColumn(format="%d", disabled=True),
+            "Klik": st.column_config.NumberColumn(format="%d", disabled=True),
+            "Donatur": st.column_config.NumberColumn(format="%.1f", disabled=True),
+            "Dana Terhimpun (Rp)": st.column_config.NumberColumn(format="Rp %d", disabled=True),
+            "ROAS (x)": st.column_config.NumberColumn(format="%.2f", disabled=True)
+        }
+
+        edited_df = st.data_editor(df_display, column_config=col_config, use_container_width=True, hide_index=True, num_rows="dynamic")
+        
+        input_cols = ["Nama Campaign", "Database", "Biaya Campaign (Rp)", "Delivery (%)", "Open (%)", "CTR (%)", "CR (%)", "Avg Donasi (Rp)"]
+        new_inputs = edited_df[input_cols].to_dict('records')
+        
+        if new_inputs != st.session_state['log_em']:
+            st.session_state['log_em'] = new_inputs
             st.rerun()
 
-        tot_biaya_em = df_em["Biaya Campaign (Rp)"].sum()
-        tot_db_em = df_em["Database"].sum()
+        tot_biaya_em = edited_df["Biaya Campaign (Rp)"].sum()
+        tot_db_em = edited_df["Database"].sum()
         tot_del_em = df_em["_Delivered"].sum()
-        tot_open_em = df_em["_Open"].sum()
-        tot_clicks_em = df_em["_Clicks"].sum()
-        tot_donatur_em = df_em["_Donatur"].sum()
-        tot_dana_em = df_em["_Dana"].sum()
+        tot_open_em = edited_df["Email Dibuka"].sum()
+        tot_clicks_em = edited_df["Klik"].sum()
+        tot_donatur_em = edited_df["Donatur"].sum()
+        tot_dana_em = edited_df["Dana Terhimpun (Rp)"].sum()
         tot_roas_em = safe_div(tot_dana_em, tot_biaya_em)
 
         st.subheader("Agregat Total Email Marketing")
@@ -374,9 +424,7 @@ with tab_email:
         tot_biaya_em = tot_dana_em = tot_donatur_em = tot_roas_em = 0
         st.info("Belum ada data Email yang dikalkulasi.")
 
-
 # ================= PERHITUNGAN TOTAL METRICS (GLOBAL) =================
-# Pastikan nilai ini memiliki referensi default jika tabel kosong
 total_biaya_global = tot_budget_ads + tot_biaya_wa + tot_biaya_em
 total_dana_global = tot_dana_ads + tot_dana_org + tot_dana_wa + tot_dana_em
 total_donatur_global = tot_donatur_ads + tot_donatur_org + tot_donatur_wa + tot_donatur_em
@@ -451,7 +499,7 @@ with tab_goal:
         else:
             req_budget_ads = safe_div(sisa_target_berbayar * pct_ads, tot_roas_ads)
             req_cost_wa = safe_div(sisa_target_berbayar * pct_wa, tot_roas_wa)
-            cpc_wa_avg = safe_div(tot_biaya_wa, tot_db_wa) if tot_db_wa > 0 else (st.session_state.get('cpc_wa') or 450)
+            cpc_wa_avg = safe_div(tot_biaya_wa, tot_db_wa) if tot_db_wa > 0 else st.session_state['cpc_wa']
             req_db_wa = safe_div(req_cost_wa, cpc_wa_avg)
             req_cost_em = safe_div(sisa_target_berbayar * pct_em, tot_roas_em)
             
