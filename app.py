@@ -22,14 +22,13 @@ with st.sidebar:
     uploaded_file = st.file_uploader("Upload CSV Performa", type=['csv'])
     if uploaded_file is not None:
         st.success("Data berhasil dimuat! (Simulasi)")
-        # Di versi nyata, di sini logika parsing CSV ke session_state diletakkan
     
     st.divider()
     
     st.header("⚠️ 2. What-If Analysis (Risiko)")
     st.write("Simulasikan jika terjadi kondisi pasar yang memburuk (Peak Season).")
-    risk_cpm = st.slider("Kenaikan Harga Iklan (CPM) %", 0, 100, 0, help="Contoh: Saat Ramadhan harga iklan naik") / 100
-    risk_cr = st.slider("Penurunan Conversion Rate %", 0, 50, 0, help="Muzakki makin sulit berdonasi") / 100
+    risk_cpm = st.slider("Kenaikan Harga Iklan (CPM) %", 0, 100, 0) / 100
+    risk_cr = st.slider("Penurunan Conversion Rate %", 0, 50, 0) / 100
 
 # ================= TAB NAVIGATION =================
 tab_goal, tab_ab, tab_ads, tab_org, tab_wa, tab_email, tab_sum = st.tabs([
@@ -42,81 +41,75 @@ tab_goal, tab_ab, tab_ads, tab_org, tab_wa, tab_email, tab_sum = st.tabs([
     "📈 Ekspor & Total"
 ])
 
-# ================= INPUT KANAL (DENGAN FAKTOR RISIKO) =================
-# Pengumpulan input dilakukan di awal untuk bisa dipakai oleh semua fitur
+# ================= INPUT KANAL =================
 with tab_ads:
     st.header("Kanal Paid Ads")
     c1, c2 = st.columns(2)
-    budget_ads = c1.number_input("Budget Iklan (Rp)", 5000000, step=500000)
-    base_cpm = c1.number_input("Target CPM (Rp)", 30000, step=1000)
-    freq_ads = c1.number_input("Target Frequency", 1.8, step=0.1)
-    ctr_ads = c1.number_input("Target CTR (%)", 3.0, step=0.1) / 100
+    budget_ads = c1.number_input("Budget Iklan (Rp)", min_value=0, value=5000000, step=500000)
+    base_cpm = c1.number_input("Target CPM (Rp)", min_value=0, value=30000, step=1000)
+    freq_ads = c1.number_input("Target Frequency", min_value=0.0, value=1.8, step=0.1)
+    ctr_ads = c1.number_input("Target CTR (%)", min_value=0.0, value=3.0, step=0.1) / 100
     
-    lp_rate_ads = c2.number_input("Target LP View Rate (%)", 75.0, step=1.0) / 100
-    base_cr_ads = c2.number_input("Target CR Ads (%)", 2.0, step=0.1) / 100
-    avg_don_ads = c2.number_input("Rata-rata Donasi Ads (Rp)", 100000, step=10000)
+    lp_rate_ads = c2.number_input("Target LP View Rate (%)", min_value=0.0, value=75.0, step=1.0) / 100
+    base_cr_ads = c2.number_input("Target CR Ads (%)", min_value=0.0, value=2.0, step=0.1) / 100
+    avg_don_ads = c2.number_input("Rata-rata Donasi Ads (Rp)", min_value=0, value=100000, step=10000)
 
 with tab_org:
     st.header("Kanal Organic Content")
     c1, c2 = st.columns(2)
-    reach_org = c1.number_input("Estimasi Reach Organik", 100000, step=5000)
-    interactions_org = c1.number_input("Total Interactions", 5000, step=500)
-    pv_org = c1.number_input("Profile Visits", 1000, step=100)
+    reach_org = c1.number_input("Estimasi Reach Organik", min_value=0, value=100000, step=5000)
+    interactions_org = c1.number_input("Total Interactions", min_value=0, value=5000, step=500)
+    pv_org = c1.number_input("Profile Visits", min_value=0, value=1000, step=100)
     
-    lc_org = c2.number_input("Link in Bio Clicks", 300, step=50)
-    base_cr_org = c2.number_input("Target CR Organik (%)", 5.0, step=0.5) / 100
-    avg_don_org = c2.number_input("Rata-rata Donasi Organik (Rp)", 200000, step=25000)
+    lc_org = c2.number_input("Link in Bio Clicks", min_value=0, value=300, step=50)
+    base_cr_org = c2.number_input("Target CR Organik (%)", min_value=0.0, value=5.0, step=0.5) / 100
+    avg_don_org = c2.number_input("Rata-rata Donasi Organik (Rp)", min_value=0, value=200000, step=25000)
 
 with tab_wa:
     st.header("Kanal WA Blast")
     c1, c2 = st.columns(2)
-    db_wa = c1.number_input("Total Database WA", 10000, step=1000)
-    cpc_wa = c1.number_input("Biaya per Chat (Rp)", 450, step=50)
-    del_wa = c1.number_input("Target Delivered WA (%)", 95.0, step=1.0) / 100
-    read_wa = c1.number_input("Target Read Rate (%)", 70.0, step=1.0) / 100
+    db_wa = c1.number_input("Total Database WA", min_value=0, value=10000, step=1000)
+    cpc_wa = c1.number_input("Biaya per Chat (Rp)", min_value=0, value=450, step=50)
+    del_wa = c1.number_input("Target Delivered WA (%)", min_value=0.0, value=95.0, step=1.0) / 100
+    read_wa = c1.number_input("Target Read Rate (%)", min_value=0.0, value=70.0, step=1.0) / 100
     
-    ctr_wa = c2.number_input("Target CTR Link WA (%)", 15.0, step=1.0) / 100
-    base_cr_wa = c2.number_input("Target CR WA (%)", 20.0, step=1.0) / 100
-    avg_don_wa = c2.number_input("Rata-rata Donasi WA (Rp)", 350000, step=25000)
+    ctr_wa = c2.number_input("Target CTR Link WA (%)", min_value=0.0, value=15.0, step=1.0) / 100
+    base_cr_wa = c2.number_input("Target CR WA (%)", min_value=0.0, value=20.0, step=1.0) / 100
+    avg_don_wa = c2.number_input("Rata-rata Donasi WA (Rp)", min_value=0, value=350000, step=25000)
 
 with tab_email:
     st.header("Kanal Email Marketing")
     c1, c2 = st.columns(2)
-    db_em = c1.number_input("Total Database Email", 40000, step=5000)
-    del_em = c1.number_input("Target Delivery Email (%)", 98.0, step=1.0) / 100
-    open_em = c1.number_input("Target Open Rate (%)", 22.0, step=1.0) / 100
-    ctr_em = c1.number_input("Target CTR Email (%)", 4.0, step=0.5) / 100
+    db_em = c1.number_input("Total Database Email", min_value=0, value=40000, step=5000)
+    del_em = c1.number_input("Target Delivery Email (%)", min_value=0.0, value=98.0, step=1.0) / 100
+    open_em = c1.number_input("Target Open Rate (%)", min_value=0.0, value=22.0, step=1.0) / 100
+    ctr_em = c1.number_input("Target CTR Email (%)", min_value=0.0, value=4.0, step=0.5) / 100
     
-    base_cr_em = c2.number_input("Target CR Email (%)", 8.0, step=1.0) / 100
-    avg_don_em = c2.number_input("Rata-rata Donasi Email (Rp)", 450000, step=50000)
-    cost_em = c2.number_input("Biaya Campaign Email (Rp)", 200000, step=50000)
+    base_cr_em = c2.number_input("Target CR Email (%)", min_value=0.0, value=8.0, step=1.0) / 100
+    avg_don_em = c2.number_input("Rata-rata Donasi Email (Rp)", min_value=0, value=450000, step=50000)
+    cost_em = c2.number_input("Biaya Campaign Email (Rp)", min_value=0, value=200000, step=50000)
 
-# ================= ENGINE KALKULASI DENGAN RISK FACTOR =================
-# Terapkan What-If Risk
+# ================= ENGINE KALKULASI =================
 actual_cpm_ads = base_cpm * (1 + risk_cpm)
 actual_cr_ads = base_cr_ads * (1 - risk_cr)
 actual_cr_org = base_cr_org * (1 - risk_cr)
 actual_cr_wa = base_cr_wa * (1 - risk_cr)
 actual_cr_em = base_cr_em * (1 - risk_cr)
 
-# Ads Calc
 imp_ads = (budget_ads / actual_cpm_ads) * 1000 if actual_cpm_ads > 0 else 0
 clicks_ads = imp_ads * ctr_ads
 donatur_ads = clicks_ads * lp_rate_ads * actual_cr_ads
 dana_ads = donatur_ads * avg_don_ads
 roas_ads = dana_ads / budget_ads if budget_ads > 0 else 0
 
-# Org Calc
 donatur_org = lc_org * actual_cr_org
 dana_org = donatur_org * avg_don_org
 
-# WA Calc
 total_cost_wa = db_wa * cpc_wa
 donatur_wa = db_wa * del_wa * read_wa * ctr_wa * actual_cr_wa
 dana_wa = donatur_wa * avg_don_wa
 roas_wa = dana_wa / total_cost_wa if total_cost_wa > 0 else 0
 
-# Email Calc
 donatur_em = db_em * del_em * open_em * ctr_em * actual_cr_em
 dana_em = donatur_em * avg_don_em
 roas_em = dana_em / cost_em if cost_em > 0 else 0
@@ -124,7 +117,6 @@ roas_em = dana_em / cost_em if cost_em > 0 else 0
 total_biaya = budget_ads + total_cost_wa + cost_em
 total_dana = dana_ads + dana_org + dana_wa + dana_em
 
-# Simpan state perhitungan saat ini untuk A/B Test
 current_metrics = {
     "Biaya Total": total_biaya,
     "Dana Terhimpun": total_dana,
@@ -134,18 +126,20 @@ current_metrics = {
     "ROAS Email": roas_em
 }
 
-# ================= TAB: GOAL SEEK (KALKULATOR MUNDUR) =================
+# ================= TAB: GOAL SEEK =================
 with tab_goal:
     st.header("🎯 Kalkulator Mundur (Goal-Seek)")
     st.write("Masukkan Target Penghimpunan ZIS Anda bulan ini, dan sistem akan menghitung mundur kebutuhan budget & database berdasar performa saat ini.")
     
-    target_dana = st.number_input("Target Total Penghimpunan (Rp)", value=1000000000, step=100000000)
+    target_dana = st.number_input("Target Total Penghimpunan (Rp)", min_value=0, value=1000000000, step=100000000)
     
     st.subheader("Distribusi Target per Kanal (%)")
     col_pct1, col_pct2, col_pct3 = st.columns(3)
-    pct_ads = col_pct1.number_input("Porsi Paid Ads (%)", 50, step=5) / 100
-    pct_wa = col_pct2.number_input("Porsi WA Blast (%)", 30, step=5) / 100
-    pct_em = col_pct3.number_input("Porsi Email (%)", 20, step=5) / 100
+    
+    # PERBAIKAN DI SINI: Menyertakan 'value=' dan 'min_value=0' agar angka bisa diset berapapun
+    pct_ads = col_pct1.number_input("Porsi Paid Ads (%)", min_value=0, max_value=100, value=50, step=5) / 100
+    pct_wa = col_pct2.number_input("Porsi WA Blast (%)", min_value=0, max_value=100, value=30, step=5) / 100
+    pct_em = col_pct3.number_input("Porsi Email (%)", min_value=0, max_value=100, value=20, step=5) / 100
     
     if pct_ads + pct_wa + pct_em != 1.0:
         st.warning("⚠️ Total Porsi harus tepat 100%")
@@ -164,7 +158,6 @@ with tab_goal:
 # ================= TAB: A/B SKENARIO =================
 with tab_ab:
     st.header("⚖️ Bandingkan Skenario A vs B")
-    st.write("Ubah parameter di Tab Kanal, lalu simpan sebagai Skenario A. Ubah lagi angkanya, simpan sebagai Skenario B.")
     
     col_btn1, col_btn2 = st.columns(2)
     if col_btn1.button("💾 Simpan Angka Saat Ini sbg Skenario A", use_container_width=True):
@@ -177,10 +170,10 @@ with tab_ab:
 
     if st.session_state['scen_a'] and st.session_state['scen_b']:
         df_ab = pd.DataFrame([
-            {"Skenario": "Skenario A", "Dana Terhimpun (Rp)": st.session_state['scen_a']["Dana Terhimpun"], "Biaya (Rp)": st.session_state['scen_a']["Biaya Total"]},
-            {"Skenario": "Skenario B", "Dana Terhimpun (Rp)": st.session_state['scen_b']["Dana Terhimpun"], "Biaya (Rp)": st.session_state['scen_b']["Biaya Total"]}
+            {"Skenario": "Skenario A", "Dana Terhimpun (Rp)": st.session_state['scen_a']["Dana Terhimpun"], "Biaya Investasi (Rp)": st.session_state['scen_a']["Biaya Total"]},
+            {"Skenario": "Skenario B", "Dana Terhimpun (Rp)": st.session_state['scen_b']["Dana Terhimpun"], "Biaya Investasi (Rp)": st.session_state['scen_b']["Biaya Total"]}
         ])
-        fig_ab = px.bar(df_ab, x="Skenario", y=["Biaya (Rp)", "Dana Terhimpun (Rp)"], barmode="group", title="Perbandingan Biaya vs Hasil")
+        fig_ab = px.bar(df_ab, x="Skenario", y=["Biaya Investasi (Rp)", "Dana Terhimpun (Rp)"], barmode="group", title="Perbandingan Biaya vs Hasil")
         st.plotly_chart(fig_ab, use_container_width=True)
     else:
         st.info("Silakan simpan Skenario A dan Skenario B terlebih dahulu untuk melihat grafik perbandingan.")
@@ -210,11 +203,9 @@ with tab_sum:
     }), use_container_width=True)
 
     col_dl1, col_dl2 = st.columns(2)
-    # 1. Export ke CSV
     csv_data = df_summary.to_csv(index=False).encode('utf-8')
     col_dl1.download_button("📥 Unduh CSV", data=csv_data, file_name='proyeksi_zis.csv', mime='text/csv', use_container_width=True)
         
-    # 2. Export ke Excel
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
         df_summary.to_excel(writer, sheet_name='Proyeksi', index=False)
