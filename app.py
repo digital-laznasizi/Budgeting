@@ -30,15 +30,15 @@ with st.sidebar:
     risk_cpm = st.slider("Kenaikan Harga Iklan (CPM) %", 0, 100, 0) / 100
     risk_cr = st.slider("Penurunan Conversion Rate %", 0, 50, 0) / 100
 
-# ================= TAB NAVIGATION =================
-tab_goal, tab_ab, tab_ads, tab_org, tab_wa, tab_email, tab_sum = st.tabs([
-    "🎯 Goal-Seek", 
-    "⚖️ A/B Skenario", 
+# ================= TAB NAVIGATION (URUTAN BARU) =================
+tab_ads, tab_org, tab_wa, tab_email, tab_sum, tab_goal, tab_ab = st.tabs([
     "📢 Paid Ads", 
     "📱 Organik", 
     "💬 WA Blast", 
     "✉️ Email", 
-    "📈 Ekspor & Total"
+    "📈 Ekspor & Total",
+    "🎯 Goal-Seek", 
+    "⚖️ A/B Skenario"
 ])
 
 # ================= INPUT KANAL =================
@@ -126,6 +126,39 @@ current_metrics = {
     "ROAS Email": roas_em
 }
 
+# ================= TAB: EKSPOR & SUMMARY =================
+with tab_sum:
+    st.header("📈 Ringkasan & Ekspor Data")
+    
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total Biaya Investasi", f"Rp {total_biaya:,.0f}")
+    c2.metric("Total Donatur", f"{current_metrics['Donatur']:,.1f}")
+    c3.metric("Dana Terhimpun", f"Rp {total_dana:,.0f}")
+    overall_roas = total_dana / total_biaya if total_biaya > 0 else 0
+    c4.metric("Overall ROAS", f"{overall_roas:.2f} x")
+
+    df_summary = pd.DataFrame({
+        "Kanal Digital": ["Paid Ads", "Organic Content", "WA Blast", "Email Marketing"],
+        "Biaya (Rp)": [budget_ads, 0, total_cost_wa, cost_em],
+        "Dana Terhimpun (Rp)": [dana_ads, dana_org, dana_wa, dana_em],
+        "ROAS (x)": [roas_ads, 0, roas_wa, roas_em]
+    })
+    
+    st.dataframe(df_summary.style.format({
+        "Biaya (Rp)": "Rp {:,.0f}",
+        "Dana Terhimpun (Rp)": "Rp {:,.0f}",
+        "ROAS (x)": "{:,.2f}"
+    }), use_container_width=True)
+
+    col_dl1, col_dl2 = st.columns(2)
+    csv_data = df_summary.to_csv(index=False).encode('utf-8')
+    col_dl1.download_button("📥 Unduh CSV", data=csv_data, file_name='proyeksi_zis.csv', mime='text/csv', use_container_width=True)
+        
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+        df_summary.to_excel(writer, sheet_name='Proyeksi', index=False)
+    col_dl2.download_button("📥 Unduh Excel (.xlsx)", data=buffer.getvalue(), file_name="proyeksi_zis.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+
 # ================= TAB: GOAL SEEK =================
 with tab_goal:
     st.header("🎯 Kalkulator Mundur (Goal-Seek)")
@@ -136,7 +169,6 @@ with tab_goal:
     st.subheader("Distribusi Target per Kanal (%)")
     col_pct1, col_pct2, col_pct3 = st.columns(3)
     
-    # PERBAIKAN DI SINI: Menyertakan 'value=' dan 'min_value=0' agar angka bisa diset berapapun
     pct_ads = col_pct1.number_input("Porsi Paid Ads (%)", min_value=0, max_value=100, value=50, step=5) / 100
     pct_wa = col_pct2.number_input("Porsi WA Blast (%)", min_value=0, max_value=100, value=30, step=5) / 100
     pct_em = col_pct3.number_input("Porsi Email (%)", min_value=0, max_value=100, value=20, step=5) / 100
@@ -177,36 +209,3 @@ with tab_ab:
         st.plotly_chart(fig_ab, use_container_width=True)
     else:
         st.info("Silakan simpan Skenario A dan Skenario B terlebih dahulu untuk melihat grafik perbandingan.")
-
-# ================= TAB: EKSPOR & SUMMARY =================
-with tab_sum:
-    st.header("📈 Ringkasan & Ekspor Data")
-    
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total Biaya Investasi", f"Rp {total_biaya:,.0f}")
-    c2.metric("Total Donatur", f"{current_metrics['Donatur']:,.1f}")
-    c3.metric("Dana Terhimpun", f"Rp {total_dana:,.0f}")
-    overall_roas = total_dana / total_biaya if total_biaya > 0 else 0
-    c4.metric("Overall ROAS", f"{overall_roas:.2f} x")
-
-    df_summary = pd.DataFrame({
-        "Kanal Digital": ["Paid Ads", "Organic Content", "WA Blast", "Email Marketing"],
-        "Biaya (Rp)": [budget_ads, 0, total_cost_wa, cost_em],
-        "Dana Terhimpun (Rp)": [dana_ads, dana_org, dana_wa, dana_em],
-        "ROAS (x)": [roas_ads, 0, roas_wa, roas_em]
-    })
-    
-    st.dataframe(df_summary.style.format({
-        "Biaya (Rp)": "Rp {:,.0f}",
-        "Dana Terhimpun (Rp)": "Rp {:,.0f}",
-        "ROAS (x)": "{:,.2f}"
-    }), use_container_width=True)
-
-    col_dl1, col_dl2 = st.columns(2)
-    csv_data = df_summary.to_csv(index=False).encode('utf-8')
-    col_dl1.download_button("📥 Unduh CSV", data=csv_data, file_name='proyeksi_zis.csv', mime='text/csv', use_container_width=True)
-        
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-        df_summary.to_excel(writer, sheet_name='Proyeksi', index=False)
-    col_dl2.download_button("📥 Unduh Excel (.xlsx)", data=buffer.getvalue(), file_name="proyeksi_zis.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
