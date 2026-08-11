@@ -45,13 +45,14 @@ tab_ads, tab_org, tab_wa, tab_email, tab_sum, tab_goal, tab_ab = st.tabs([
 with tab_ads:
     st.header("Kanal Paid Ads")
     c1, c2 = st.columns(2)
-    budget_ads = c1.number_input("Budget Iklan (Rp)", min_value=0, value=5000000, step=500000)
-    base_cpm = c1.number_input("Target CPM (Rp)", min_value=0, value=30000, step=1000)
-    freq_ads = c1.number_input("Target Frequency", min_value=0.0, value=1.8, step=0.1)
-    ctr_ads = c1.number_input("Target CTR (%)", min_value=0.0, value=3.0, step=0.1) / 100
+    # Default value disesuaikan dengan screenshot terbaru
+    budget_ads = c1.number_input("Budget Iklan (Rp)", min_value=0, value=50000000, step=500000)
+    base_cpm = c1.number_input("Target CPM (Rp)", min_value=0, value=2000, step=1000)
+    freq_ads = c1.number_input("Target Frequency", min_value=0.0, value=1.30, step=0.1)
+    ctr_ads = c1.number_input("Target CTR (%)", min_value=0.0, value=5.00, step=0.1) / 100
     
-    lp_rate_ads = c2.number_input("Target LP View Rate (%)", min_value=0.0, value=75.0, step=1.0) / 100
-    base_cr_ads = c2.number_input("Target CR Ads (%)", min_value=0.0, value=2.0, step=0.1) / 100
+    lp_rate_ads = c2.number_input("Target LP View Rate (%)", min_value=0.0, value=75.00, step=1.0) / 100
+    base_cr_ads = c2.number_input("Target CR Ads (%)", min_value=0.0, value=2.00, step=0.1) / 100
     avg_don_ads = c2.number_input("Rata-rata Donasi Ads (Rp)", min_value=0, value=100000, step=10000)
 
     # Kalkulasi Ads
@@ -70,7 +71,6 @@ with tab_ads:
 
     st.divider()
     
-    # KEMBALIKAN SUMMARY ANGKA (METRICS)
     st.subheader("Proyeksi Hasil Paid Ads")
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Estimasi Reach", f"{reach_ads:,.0f}")
@@ -83,8 +83,7 @@ with tab_ads:
     m6.metric("Target CPA (Cost/Donor)", f"Rp {cpa_ads:,.0f}")
     m7.metric("Proyeksi ROAS", f"{roas_ads:.2f} x")
     
-    st.write("") # Spacer
-    # Funnel ditaro dalam Expander (Dropdown / Hiding)
+    st.write("") 
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) Paid Ads"):
         fig_funnel_ads = go.Figure(go.Funnel(
             y = ["Impressions (Jangkauan)", "Ad Clicks (Klik Iklan)", "LP Views (Masuk Web Zakat)", "Donatur Berhasil"],
@@ -115,7 +114,6 @@ with tab_org:
 
     st.divider()
     
-    # KEMBALIKAN SUMMARY ANGKA (METRICS)
     st.subheader("Proyeksi Hasil Organik")
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Engagement Rate (ER)", f"{er_org*100:.2f}%")
@@ -123,8 +121,7 @@ with tab_org:
     m3.metric("Estimasi Donatur", f"{donatur_org:,.1f}")
     m4.metric("Total Dana Terhimpun", f"Rp {dana_org:,.0f}")
     
-    st.write("") # Spacer
-    # Funnel ditaro dalam Expander
+    st.write("") 
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) Organik"):
         fig_funnel_org = go.Figure(go.Funnel(
             y = ["Reach (Jangkauan Konten)", "Profile Visits (Kunjungan Profil)", "Link Clicks (Klik Link Bio)", "Donatur Berhasil"],
@@ -157,10 +154,10 @@ with tab_wa:
     donatur_wa = link_clicks_wa * actual_cr_wa
     dana_wa = donatur_wa * avg_don_wa
     roas_wa = dana_wa / total_cost_wa if total_cost_wa > 0 else 0
+    cpa_wa = total_cost_wa / donatur_wa if donatur_wa > 0 else 0
 
     st.divider()
     
-    # KEMBALIKAN SUMMARY ANGKA (METRICS)
     st.subheader("Proyeksi Hasil WA Blast")
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Total Biaya Blast", f"Rp {total_cost_wa:,.0f}")
@@ -169,8 +166,7 @@ with tab_wa:
     m4.metric("Total Dana Terhimpun", f"Rp {dana_wa:,.0f}")
     st.metric("Proyeksi ROAS WA Blast", f"{roas_wa:.2f} x")
     
-    st.write("") # Spacer
-    # Funnel ditaro dalam Expander
+    st.write("") 
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) WA Blast"):
         fig_funnel_wa = go.Figure(go.Funnel(
             y = ["Database Nomor", "Pesan Terkirim (Delivered)", "Pesan Dibaca (Read)", "Klik Link (CTR)", "Donatur Berhasil"],
@@ -202,10 +198,10 @@ with tab_email:
     donatur_em = em_clicks * actual_cr_em
     dana_em = donatur_em * avg_don_em
     roas_em = dana_em / cost_em if cost_em > 0 else 0
+    cpa_em = cost_em / donatur_em if donatur_em > 0 else 0
 
     st.divider()
     
-    # KEMBALIKAN SUMMARY ANGKA (METRICS)
     st.subheader("Proyeksi Hasil Email Marketing")
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Email Dibuka", f"{em_opened:,.0f}")
@@ -214,8 +210,7 @@ with tab_email:
     m4.metric("Total Dana Terhimpun", f"Rp {dana_em:,.0f}")
     st.metric("Proyeksi ROAS Email", f"{roas_em:.2f} x")
     
-    st.write("") # Spacer
-    # Funnel ditaro dalam Expander
+    st.write("") 
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) Email"):
         fig_funnel_em = go.Figure(go.Funnel(
             y = ["Database Email", "Email Terkirim", "Email Dibuka (Open)", "Klik Link", "Donatur Berhasil"],
@@ -240,7 +235,7 @@ current_metrics = {
     "ROAS Email": roas_em
 }
 
-# ================= TAB: EKSPOR & SUMMARY =================
+# ================= TAB: EKSPOR & SUMMARY (VERSI LENGKAP) =================
 with tab_sum:
     st.header("📈 Ringkasan & Ekspor Data")
     
@@ -251,27 +246,74 @@ with tab_sum:
     overall_roas = total_dana / total_biaya if total_biaya > 0 else 0
     c4.metric("Overall ROAS", f"{overall_roas:.2f} x")
 
+    # DF SUPER LENGKAP: Mengambil Seluruh Parameter Input dan Hasil Kalkulasi
     df_summary = pd.DataFrame({
         "Kanal Digital": ["Paid Ads", "Organic Content", "WA Blast", "Email Marketing"],
-        "Biaya (Rp)": [budget_ads, 0, total_cost_wa, cost_em],
+        "Biaya Investasi (Rp)": [budget_ads, 0, total_cost_wa, cost_em],
+        "Biaya Satuan (Rp)": [base_cpm, None, cpc_wa, None],
+        "Target Frequency": [freq_ads, None, None, None],
+        "Basis Audiens (Database/Jangkauan)": [imp_ads, reach_org, db_wa, db_em],
+        "Interaksi Organik": [None, interactions_org, None, None],
+        "Target Delivered (%)": [None, None, del_wa*100, del_em*100],
+        "Total Pesan Terkirim": [None, None, msg_delivered, em_delivered],
+        "Target Read/Open (%)": [None, None, read_wa*100, open_em*100],
+        "Total Dibaca / Profile Visits": [None, pv_org, msg_read, em_opened],
+        "Target CTR (%)": [ctr_ads*100, ctr_org*100, ctr_wa*100, ctr_em*100],
+        "Total Klik (Clicks)": [clicks_ads, lc_org, link_clicks_wa, em_clicks],
+        "Target LP View Rate (%)": [lp_rate_ads*100, None, None, None],
+        "Total LP Views": [lp_views_ads, None, None, None],
+        "Target Conversion Rate (%)": [base_cr_ads*100, base_cr_org*100, base_cr_wa*100, base_cr_em*100],
+        "Rata-rata Donasi (Rp)": [avg_don_ads, avg_don_org, avg_don_wa, avg_don_em],
+        "Estimasi Donatur Berhasil": [donatur_ads, donatur_org, donatur_wa, donatur_em],
+        "Target CPA (Rp)": [cpa_ads, None, cpa_wa, cpa_em],
         "Dana Terhimpun (Rp)": [dana_ads, dana_org, dana_wa, dana_em],
-        "ROAS (x)": [roas_ads, 0, roas_wa, roas_em]
+        "Proyeksi ROAS (x)": [roas_ads, None, roas_wa, roas_em]
     })
     
+    # Custom Formatter agar tampilan Streamlit rapi, tetapi export tetap berupa angka murni
+    def format_rp(val):
+        return f"Rp {val:,.0f}" if pd.notnull(val) else "-"
+    def format_pct(val):
+        return f"{val:,.2f}%" if pd.notnull(val) else "-"
+    def format_num(val):
+        return f"{val:,.1f}" if pd.notnull(val) else "-"
+    def format_roas(val):
+        return f"{val:,.2f} x" if pd.notnull(val) else "-"
+
+    st.subheader("Data Lengkap Parameter & Proyeksi")
+    st.write("Tabel ini menyertakan seluruh komponen input dan kalkulasi. Geser ke kanan untuk melihat kolom selengkapnya.")
     st.dataframe(df_summary.style.format({
-        "Biaya (Rp)": "Rp {:,.0f}",
-        "Dana Terhimpun (Rp)": "Rp {:,.0f}",
-        "ROAS (x)": "{:,.2f}"
+        "Biaya Investasi (Rp)": format_rp,
+        "Biaya Satuan (Rp)": format_rp,
+        "Target Frequency": format_num,
+        "Basis Audiens (Database/Jangkauan)": format_num,
+        "Interaksi Organik": format_num,
+        "Target Delivered (%)": format_pct,
+        "Total Pesan Terkirim": format_num,
+        "Target Read/Open (%)": format_pct,
+        "Total Dibaca / Profile Visits": format_num,
+        "Target CTR (%)": format_pct,
+        "Total Klik (Clicks)": format_num,
+        "Target LP View Rate (%)": format_pct,
+        "Total LP Views": format_num,
+        "Target Conversion Rate (%)": format_pct,
+        "Rata-rata Donasi (Rp)": format_rp,
+        "Estimasi Donatur Berhasil": format_num,
+        "Target CPA (Rp)": format_rp,
+        "Dana Terhimpun (Rp)": format_rp,
+        "Proyeksi ROAS (x)": format_roas
     }), use_container_width=True)
 
     col_dl1, col_dl2 = st.columns(2)
+    # Unduh CSV
     csv_data = df_summary.to_csv(index=False).encode('utf-8')
-    col_dl1.download_button("📥 Unduh CSV", data=csv_data, file_name='proyeksi_zis.csv', mime='text/csv', use_container_width=True)
+    col_dl1.download_button("📥 Unduh CSV", data=csv_data, file_name='proyeksi_zis_lengkap.csv', mime='text/csv', use_container_width=True)
         
+    # Unduh Excel
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-        df_summary.to_excel(writer, sheet_name='Proyeksi', index=False)
-    col_dl2.download_button("📥 Unduh Excel (.xlsx)", data=buffer.getvalue(), file_name="proyeksi_zis.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+        df_summary.to_excel(writer, sheet_name='Proyeksi_Lengkap', index=False)
+    col_dl2.download_button("📥 Unduh Excel (.xlsx)", data=buffer.getvalue(), file_name="proyeksi_zis_lengkap.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
 
 # ================= TAB: GOAL SEEK =================
 with tab_goal:
