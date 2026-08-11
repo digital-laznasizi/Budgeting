@@ -67,15 +67,16 @@ with tab_ads:
 
     st.divider()
     
-    # Visualisasi Funnel Ads
-    fig_funnel_ads = go.Figure(go.Funnel(
-        y = ["Impressions (Jangkauan)", "Ad Clicks (Klik Iklan)", "LP Views (Masuk Web Zakat)", "Donatur Berhasil"],
-        x = [imp_ads, clicks_ads, lp_views_ads, donatur_ads],
-        textinfo = "value+percent initial",
-        marker = {"color": ["#4C78A8", "#72B7B2", "#F58518", "#E45756"]}
-    ))
-    fig_funnel_ads.update_layout(title="Corong Konversi (Funnel) - Paid Ads", margin=dict(t=40, b=0))
-    st.plotly_chart(fig_funnel_ads, use_container_width=True)
+    # Funnel ditaro dalam Expander (Dropdown / Hiding)
+    with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) Paid Ads"):
+        fig_funnel_ads = go.Figure(go.Funnel(
+            y = ["Impressions (Jangkauan)", "Ad Clicks (Klik Iklan)", "LP Views (Masuk Web Zakat)", "Donatur Berhasil"],
+            x = [imp_ads, clicks_ads, lp_views_ads, donatur_ads],
+            textinfo = "value+percent initial",
+            marker = {"color": ["#4C78A8", "#72B7B2", "#F58518", "#E45756"]}
+        ))
+        fig_funnel_ads.update_layout(title="Corong Konversi (Funnel) - Paid Ads", margin=dict(t=40, b=0))
+        st.plotly_chart(fig_funnel_ads, use_container_width=True)
 
 with tab_org:
     st.header("Kanal Organic Content")
@@ -95,15 +96,16 @@ with tab_org:
 
     st.divider()
     
-    # Visualisasi Funnel Organik
-    fig_funnel_org = go.Figure(go.Funnel(
-        y = ["Reach (Jangkauan Konten)", "Profile Visits (Kunjungan Profil)", "Link Clicks (Klik Link Bio)", "Donatur Berhasil"],
-        x = [reach_org, pv_org, lc_org, donatur_org],
-        textinfo = "value+percent initial",
-        marker = {"color": ["#4C78A8", "#72B7B2", "#F58518", "#E45756"]}
-    ))
-    fig_funnel_org.update_layout(title="Corong Konversi (Funnel) - Organic Content", margin=dict(t=40, b=0))
-    st.plotly_chart(fig_funnel_org, use_container_width=True)
+    # Funnel ditaro dalam Expander
+    with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) Organik"):
+        fig_funnel_org = go.Figure(go.Funnel(
+            y = ["Reach (Jangkauan Konten)", "Profile Visits (Kunjungan Profil)", "Link Clicks (Klik Link Bio)", "Donatur Berhasil"],
+            x = [reach_org, pv_org, lc_org, donatur_org],
+            textinfo = "value+percent initial",
+            marker = {"color": ["#4C78A8", "#72B7B2", "#F58518", "#E45756"]}
+        ))
+        fig_funnel_org.update_layout(title="Corong Konversi (Funnel) - Organic Content", margin=dict(t=40, b=0))
+        st.plotly_chart(fig_funnel_org, use_container_width=True)
 
 with tab_wa:
     st.header("Kanal WA Blast")
@@ -130,15 +132,16 @@ with tab_wa:
 
     st.divider()
     
-    # Visualisasi Funnel WA
-    fig_funnel_wa = go.Figure(go.Funnel(
-        y = ["Database Nomor", "Pesan Terkirim (Delivered)", "Pesan Dibaca (Read)", "Klik Link (CTR)", "Donatur Berhasil"],
-        x = [db_wa, msg_delivered, msg_read, link_clicks_wa, donatur_wa],
-        textinfo = "value+percent initial",
-        marker = {"color": ["#4C78A8", "#54A24B", "#72B7B2", "#F58518", "#E45756"]}
-    ))
-    fig_funnel_wa.update_layout(title="Corong Konversi (Funnel) - WA Blast", margin=dict(t=40, b=0))
-    st.plotly_chart(fig_funnel_wa, use_container_width=True)
+    # Funnel ditaro dalam Expander
+    with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) WA Blast"):
+        fig_funnel_wa = go.Figure(go.Funnel(
+            y = ["Database Nomor", "Pesan Terkirim (Delivered)", "Pesan Dibaca (Read)", "Klik Link (CTR)", "Donatur Berhasil"],
+            x = [db_wa, msg_delivered, msg_read, link_clicks_wa, donatur_wa],
+            textinfo = "value+percent initial",
+            marker = {"color": ["#4C78A8", "#54A24B", "#72B7B2", "#F58518", "#E45756"]}
+        ))
+        fig_funnel_wa.update_layout(title="Corong Konversi (Funnel) - WA Blast", margin=dict(t=40, b=0))
+        st.plotly_chart(fig_funnel_wa, use_container_width=True)
 
 with tab_email:
     st.header("Kanal Email Marketing")
@@ -164,15 +167,16 @@ with tab_email:
 
     st.divider()
     
-    # Visualisasi Funnel Email
-    fig_funnel_em = go.Figure(go.Funnel(
-        y = ["Database Email", "Email Terkirim", "Email Dibuka (Open)", "Klik Link", "Donatur Berhasil"],
-        x = [db_em, em_delivered, em_opened, em_clicks, donatur_em],
-        textinfo = "value+percent initial",
-        marker = {"color": ["#4C78A8", "#54A24B", "#72B7B2", "#F58518", "#E45756"]}
-    ))
-    fig_funnel_em.update_layout(title="Corong Konversi (Funnel) - Email Marketing", margin=dict(t=40, b=0))
-    st.plotly_chart(fig_funnel_em, use_container_width=True)
+    # Funnel ditaro dalam Expander
+    with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) Email"):
+        fig_funnel_em = go.Figure(go.Funnel(
+            y = ["Database Email", "Email Terkirim", "Email Dibuka (Open)", "Klik Link", "Donatur Berhasil"],
+            x = [db_em, em_delivered, em_opened, em_clicks, donatur_em],
+            textinfo = "value+percent initial",
+            marker = {"color": ["#4C78A8", "#54A24B", "#72B7B2", "#F58518", "#E45756"]}
+        ))
+        fig_funnel_em.update_layout(title="Corong Konversi (Funnel) - Email Marketing", margin=dict(t=40, b=0))
+        st.plotly_chart(fig_funnel_em, use_container_width=True)
 
 # ================= PERHITUNGAN TOTAL =================
 total_biaya = budget_ads + total_cost_wa + cost_em
