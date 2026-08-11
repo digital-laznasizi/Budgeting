@@ -1,10 +1,11 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import io
 
-st.set_page_config(page_title="Simulator Budgeting Digital ZIS", layout="wide")
+st.set_page_config(page_title="Simulator Budgeting Digital", layout="wide")
 
-st.title("📊 Simulator Budgeting Digital Fundraising ZIS")
+st.title("📊 Simulator Budgeting Digital Fundraising")
 st.caption("Masukan angka parameter kustom Anda di setiap kanal untuk melihat proyeksi penghimpunan dana.")
 
 # Tab navigation
@@ -13,7 +14,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📱 Organic Content", 
     "💬 WA Blast", 
     "✉️ Email Marketing",
-    "📈 Ringkasan & Total"
+    "📈 Ringkasan & Ekspor"
 ])
 
 # ---------------- TAB 1: PAID ADS ----------------
@@ -134,9 +135,9 @@ with tab4:
     m4.metric("Total Dana Terhimpun", f"Rp {dana_em:,.0f}")
     st.metric("Proyeksi ROAS Email", f"{roas_em:.2f} x")
 
-# ---------------- TAB 5: SUMMARY & TOTAL ----------------
+# ---------------- TAB 5: SUMMARY & EKSPOR ----------------
 with tab5:
-    st.header("5. Ringkasan Total Digital Fundraising")
+    st.header("5. Ringkasan Total & Ekspor Data")
     
     total_biaya = budget_ads + total_cost_wa + cost_em
     total_dana = dana_ads + dana_org + dana_wa + dana_em
@@ -149,25 +150,61 @@ with tab5:
     c3.metric("Total Dana Terhimpun", f"Rp {total_dana:,.0f}")
     c4.metric("Overall ROAS Combined", f"{overall_roas:.2f} x")
 
+    # Dataframe Utama untuk Laporan
     df_summary = pd.DataFrame({
-        "Kanal": ["Paid Ads", "Organic Content", "WA Blast", "Email Marketing"],
-        "Biaya (Rp)": [budget_ads, 0, total_cost_wa, cost_em],
+        "Kanal Digital": ["Paid Ads", "Organic Content", "WA Blast", "Email Marketing"],
+        "Biaya Investasi (Rp)": [budget_ads, 0, total_cost_wa, cost_em],
         "Dana Terhimpun (Rp)": [dana_ads, dana_org, dana_wa, dana_em],
-        "Estimasi Donatur": [donatur_ads, donatur_org, donatur_wa, donatur_em]
+        "Estimasi Donatur": [donatur_ads, donatur_org, donatur_wa, donatur_em],
+        "ROAS (x)": [roas_ads, 0, roas_wa, roas_em]
     })
 
     st.subheader("Perbandingan Hasil per Kanal")
     st.dataframe(df_summary.style.format({
-        "Biaya (Rp)": "Rp {:,.0f}",
+        "Biaya Investasi (Rp)": "Rp {:,.0f}",
         "Dana Terhimpun (Rp)": "Rp {:,.0f}",
-        "Estimasi Donatur": "{:,.1f}"
+        "Estimasi Donatur": "{:,.1f}",
+        "ROAS (x)": "{:,.2f}"
     }), use_container_width=True)
+
+    # ---------------- FITUR EKSPOR ----------------
+    st.markdown("### 📥 Ekspor Laporan")
+    st.write("Unduh hasil proyeksi ini ke dalam format Excel atau CSV untuk keperluan internal.")
+    
+    col_dl1, col_dl2 = st.columns(2)
+    
+    # 1. Export ke CSV
+    csv_data = df_summary.to_csv(index=False).encode('utf-8')
+    with col_dl1:
+        st.download_button(
+            label="Unduh sebagai CSV",
+            data=csv_data,
+            file_name='proyeksi_budget_digital.csv',
+            mime='text/csv',
+            use_container_width=True
+        )
+        
+    # 2. Export ke Excel (.xlsx) menggunakan io.BytesIO
+    buffer = io.BytesIO()
+    # Menggunakan openpyxl engine yang sudah terpasang otomatis dari requirement pandas untuk excel
+    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+        df_summary.to_excel(writer, sheet_name='Proyeksi Budgeting', index=False)
+    
+    with col_dl2:
+        st.download_button(
+            label="Unduh sebagai Excel (.xlsx)",
+            data=buffer.getvalue(),
+            file_name="proyeksi_budget_digital.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+    # ----------------------------------------------
 
     fig = px.bar(
         df_summary, 
-        x="Kanal", 
+        x="Kanal Digital", 
         y="Dana Terhimpun (Rp)", 
-        color="Kanal",
-        title="Proyeksi Penghimpunan Dana ZIS per Kanal Digital"
+        color="Kanal Digital",
+        title="Proyeksi Penghimpunan Dana per Kanal Digital"
     )
     st.plotly_chart(fig, use_container_width=True)
