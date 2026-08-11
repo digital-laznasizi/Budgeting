@@ -8,12 +8,14 @@ st.set_page_config(page_title="ZIS Digital Strategy Engine", layout="wide")
 
 # ================= HELPER FUNCTIONS =================
 def safe_div(numerator, denominator, default=0.0):
+    """Mencegah zero-division error dengan mengembalikan nilai default."""
     return numerator / denominator if denominator > 0 else default
 
 def format_cpa(cpa_value, donatur_count):
+    """Memformat CPA agar menunjukkan tak terhingga jika donatur 0."""
     if donatur_count > 0:
         return f"Rp {cpa_value:,.0f}"
-    return "N/A (Tak terhingga)"
+    return "N/A"
 
 # ================= SESSION STATE INIT =================
 if 'scen_a' not in st.session_state:
@@ -105,19 +107,31 @@ with tab_ads:
     roas_ads = safe_div(dana_ads, budget_ads)
 
     st.divider()
-    st.subheader("Proyeksi Hasil Paid Ads")
-    st.info(f"**Asumsi Input:** Budget: Rp {budget_ads:,.0f} | Target CPM: Rp {base_cpm:,.0f} | Freq: {freq_ads:g} | CTR: {ctr_ads*100:g}% | LP View: {lp_rate_ads*100:g}% | CR: {base_cr_ads*100:g}% | Donasi Avg: Rp {avg_don_ads:,.0f}")
+    st.subheader("Ringkasan Parameter & Hasil Paid Ads")
+    
+    # 1-Row Table for Ads
+    df_ads_summary = pd.DataFrame([{
+        "Budget": f"Rp {budget_ads:,.0f}",
+        "CPM": f"Rp {base_cpm:,.0f}",
+        "Freq": f"{freq_ads:g}",
+        "CTR": f"{ctr_ads*100:g}%",
+        "LP View": f"{lp_rate_ads*100:g}%",
+        "CR": f"{base_cr_ads*100:g}%",
+        "Avg Donasi": f"Rp {avg_don_ads:,.0f}",
+        "Reach": f"{reach_ads:,.0f}",
+        "Klik": f"{clicks_ads:,.0f}",
+        "Donatur": f"{donatur_ads:,.1f}",
+        "CPA": format_cpa(cpa_ads, donatur_ads),
+        "Dana Terhimpun": f"Rp {dana_ads:,.0f}",
+        "ROAS": f"{roas_ads:.2f} x"
+    }])
+    st.dataframe(df_ads_summary, use_container_width=True, hide_index=True)
     
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Estimasi Reach", f"{reach_ads:,.0f}")
     m2.metric("Estimasi Klik", f"{clicks_ads:,.0f}")
     m3.metric("Proyeksi Donatur", f"{donatur_ads:,.1f}")
     m4.metric("Total Dana Terhimpun", f"Rp {dana_ads:,.0f}")
-
-    m5, m6, m7 = st.columns(3)
-    m5.metric("Proyeksi CPC", f"Rp {cpc_ads:,.0f}")
-    m6.metric("Target CPA (Cost/Donor)", format_cpa(cpa_ads, donatur_ads))
-    m7.metric("Proyeksi ROAS", f"{roas_ads:.2f} x")
     
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) Paid Ads"):
         fig_funnel_ads = go.Figure(go.Funnel(
@@ -148,8 +162,22 @@ with tab_org:
     dana_org = donatur_org * avg_don_org
 
     st.divider()
-    st.subheader("Proyeksi Hasil Organik")
-    st.info(f"**Asumsi Input:** Reach: {reach_org:,.0f} | Interactions: {interactions_org:,.0f} | Profile Visits: {pv_org:,.0f} | Link Clicks: {lc_org:,.0f} | CR: {base_cr_org*100:g}% | Donasi Avg: Rp {avg_don_org:,.0f}")
+    st.subheader("Ringkasan Parameter & Hasil Organik")
+    
+    # 1-Row Table for Organik
+    df_org_summary = pd.DataFrame([{
+        "Reach": f"{reach_org:,.0f}",
+        "Interactions": f"{interactions_org:,.0f}",
+        "Profile Visits": f"{pv_org:,.0f}",
+        "Link Clicks": f"{lc_org:,.0f}",
+        "CR": f"{base_cr_org*100:g}%",
+        "Avg Donasi": f"Rp {avg_don_org:,.0f}",
+        "ER": f"{er_org*100:.2f}%",
+        "CTR": f"{ctr_org*100:.2f}%",
+        "Donatur": f"{donatur_org:,.1f}",
+        "Dana Terhimpun": f"Rp {dana_org:,.0f}"
+    }])
+    st.dataframe(df_org_summary, use_container_width=True, hide_index=True)
     
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Engagement Rate (ER)", f"{er_org*100:.2f}%")
@@ -191,15 +219,30 @@ with tab_wa:
     roas_wa = safe_div(dana_wa, total_cost_wa)
 
     st.divider()
-    st.subheader("Proyeksi Hasil WA Blast")
-    st.info(f"**Asumsi Input:** Database: {db_wa:,.0f} | Cost/Chat: Rp {cpc_wa:,.0f} | Delivered: {del_wa*100:g}% | Read: {read_wa*100:g}% | CTR: {ctr_wa*100:g}% | CR: {base_cr_wa*100:g}% | Donasi Avg: Rp {avg_don_wa:,.0f}")
+    st.subheader("Ringkasan Parameter & Hasil WA Blast")
+    
+    # 1-Row Table for WA
+    df_wa_summary = pd.DataFrame([{
+        "Database": f"{db_wa:,.0f}",
+        "Cost/Chat": f"Rp {cpc_wa:,.0f}",
+        "Delivered": f"{del_wa*100:g}%",
+        "Read": f"{read_wa*100:g}%",
+        "CTR": f"{ctr_wa*100:g}%",
+        "CR": f"{base_cr_wa*100:g}%",
+        "Avg Donasi": f"Rp {avg_don_wa:,.0f}",
+        "Biaya Blast": f"Rp {total_cost_wa:,.0f}",
+        "Pesan Dibaca": f"{msg_read:,.0f}",
+        "Donatur": f"{donatur_wa:,.1f}",
+        "Dana Terhimpun": f"Rp {dana_wa:,.0f}",
+        "ROAS": f"{roas_wa:.2f} x"
+    }])
+    st.dataframe(df_wa_summary, use_container_width=True, hide_index=True)
     
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Total Biaya Blast", f"Rp {total_cost_wa:,.0f}")
     m2.metric("Pesan Dibaca", f"{msg_read:,.0f}")
     m3.metric("Estimasi Donatur", f"{donatur_wa:,.1f}")
     m4.metric("Total Dana Terhimpun", f"Rp {dana_wa:,.0f}")
-    st.metric("Proyeksi ROAS WA Blast", f"{roas_wa:.2f} x")
     
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) WA Blast"):
         fig_funnel_wa = go.Figure(go.Funnel(
@@ -234,15 +277,30 @@ with tab_email:
     roas_em = safe_div(dana_em, cost_em)
 
     st.divider()
-    st.subheader("Proyeksi Hasil Email Marketing")
-    st.info(f"**Asumsi Input:** Database: {db_em:,.0f} | Cost Campaign: Rp {cost_em:,.0f} | Delivery: {del_em*100:g}% | Open: {open_em*100:g}% | CTR: {ctr_em*100:g}% | CR: {base_cr_em*100:g}% | Donasi Avg: Rp {avg_don_em:,.0f}")
+    st.subheader("Ringkasan Parameter & Hasil Email Marketing")
+    
+    # 1-Row Table for Email
+    df_em_summary = pd.DataFrame([{
+        "Database": f"{db_em:,.0f}",
+        "Biaya Campaign": f"Rp {cost_em:,.0f}",
+        "Delivery": f"{del_em*100:g}%",
+        "Open": f"{open_em*100:g}%",
+        "CTR": f"{ctr_em*100:g}%",
+        "CR": f"{base_cr_em*100:g}%",
+        "Avg Donasi": f"Rp {avg_don_em:,.0f}",
+        "Email Dibuka": f"{em_opened:,.0f}",
+        "Klik": f"{em_clicks:,.0f}",
+        "Donatur": f"{donatur_em:,.1f}",
+        "Dana Terhimpun": f"Rp {dana_em:,.0f}",
+        "ROAS": f"{roas_em:.2f} x"
+    }])
+    st.dataframe(df_em_summary, use_container_width=True, hide_index=True)
     
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Email Dibuka", f"{em_opened:,.0f}")
     m2.metric("Estimasi Klik", f"{em_clicks:,.0f}")
     m3.metric("Estimasi Donatur", f"{donatur_em:,.1f}")
     m4.metric("Total Dana Terhimpun", f"Rp {dana_em:,.0f}")
-    st.metric("Proyeksi ROAS Email", f"{roas_em:.2f} x")
     
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) Email"):
         fig_funnel_em = go.Figure(go.Funnel(
@@ -283,26 +341,30 @@ with tab_sum:
     c3.metric("Dana Terhimpun", f"Rp {total_dana:,.0f}")
     c4.metric("Overall ROAS", f"{overall_roas:.2f} x")
 
+    # Comprehensive DataFrame - Multi Column
     df_summary = pd.DataFrame({
         "Kanal Digital": ["Paid Ads", "Organic Content", "WA Blast", "Email Marketing"],
-        "Asumsi Input (Parameter Utama)": [
-            f"CPM: Rp {base_cpm:,.0f} | CTR: {ctr_ads*100:g}% | CR: {base_cr_ads*100:g}% | Avg Rp {avg_don_ads:,.0f}",
-            f"Reach: {reach_org:,.0f} | ER: {er_org*100:g}% | CR: {base_cr_org*100:g}% | Avg Rp {avg_don_org:,.0f}",
-            f"DB: {db_wa:,.0f} | Read: {read_wa*100:g}% | CR: {base_cr_wa*100:g}% | Avg Rp {avg_don_wa:,.0f}",
-            f"DB: {db_em:,.0f} | Open: {open_em*100:g}% | CR: {base_cr_em*100:g}% | Avg Rp {avg_don_em:,.0f}"
-        ],
-        "Biaya (Rp)": [budget_ads, 0, total_cost_wa, cost_em],
+        "Basis Target (Reach/DB)": [reach_ads, reach_org, db_wa, db_em],
+        "Rasio Klik/Interaksi (%)": [ctr_ads * 100, ctr_org * 100, ctr_wa * 100, ctr_em * 100],
+        "Conversion Rate (%)": [base_cr_ads * 100, base_cr_org * 100, base_cr_wa * 100, base_cr_em * 100],
+        "Avg Donasi (Rp)": [avg_don_ads, avg_don_org, avg_don_wa, avg_don_em],
+        "Biaya Total (Rp)": [budget_ads, 0, total_cost_wa, cost_em],
         "Proyeksi Donatur": [donatur_ads, donatur_org, donatur_wa, donatur_em],
-        "Dana Terhimpun (Rp)": [dana_ads, dana_org, dana_wa, dana_em],
+        "Total Dana Terhimpun (Rp)": [dana_ads, dana_org, dana_wa, dana_em],
         "ROAS (x)": [roas_ads, 0, roas_wa, roas_em]
     })
     
+    # Formatter dict for the Pandas Styler
     st.dataframe(df_summary.style.format({
-        "Biaya (Rp)": "Rp {:,.0f}",
+        "Basis Target (Reach/DB)": "{:,.0f}",
+        "Rasio Klik/Interaksi (%)": "{:,.2f}%",
+        "Conversion Rate (%)": "{:,.2f}%",
+        "Avg Donasi (Rp)": "Rp {:,.0f}",
+        "Biaya Total (Rp)": "Rp {:,.0f}",
         "Proyeksi Donatur": "{:,.1f}",
-        "Dana Terhimpun (Rp)": "Rp {:,.0f}",
+        "Total Dana Terhimpun (Rp)": "Rp {:,.0f}",
         "ROAS (x)": "{:,.2f}"
-    }), use_container_width=True)
+    }), use_container_width=True, hide_index=True)
 
     col_dl1, col_dl2 = st.columns(2)
     csv_data = df_summary.to_csv(index=False).encode('utf-8')
