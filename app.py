@@ -6,27 +6,63 @@ import io
 
 st.set_page_config(page_title="ZIS Digital Strategy Engine", layout="wide")
 
-# Inisialisasi Session State untuk A/B Testing
+# ================= HELPER FUNCTIONS =================
+def safe_div(numerator, denominator, default=0.0):
+    """Mencegah zero-division error dengan mengembalikan nilai default."""
+    return numerator / denominator if denominator > 0 else default
+
+def format_cpa(cpa_value, donatur_count):
+    """Memformat CPA agar menunjukkan tak terhingga jika donatur 0."""
+    if donatur_count > 0:
+        return f"Rp {cpa_value:,.0f}"
+    return "N/A (Tak terhingga)"
+
+# ================= SESSION STATE INIT =================
 if 'scen_a' not in st.session_state:
     st.session_state['scen_a'] = None
 if 'scen_b' not in st.session_state:
     st.session_state['scen_b'] = None
+
+# Nilai default untuk form input (disimpan di session state agar bisa di-overwrite CSV)
+default_params = {
+    'budget_ads': 5000000.0, 'base_cpm': 30000.0, 'freq_ads': 1.8, 'ctr_ads': 3.0, 'lp_rate_ads': 75.0, 'base_cr_ads': 2.0, 'avg_don_ads': 100000.0,
+    'reach_org': 100000.0, 'interactions_org': 5000.0, 'pv_org': 1000.0, 'lc_org': 300.0, 'base_cr_org': 5.0, 'avg_don_org': 200000.0,
+    'db_wa': 10000.0, 'cpc_wa': 450.0, 'del_wa': 95.0, 'read_wa': 70.0, 'ctr_wa': 15.0, 'base_cr_wa': 20.0, 'avg_don_wa': 350000.0,
+    'db_em': 40000.0, 'del_em': 98.0, 'open_em': 22.0, 'ctr_em': 4.0, 'base_cr_em': 8.0, 'avg_don_em': 450000.0, 'cost_em': 200000.0
+}
+
+for key, value in default_params.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
 st.title("🚀 ZIS Digital Strategy Engine")
 st.caption("Simulator Budgeting, Manajemen Risiko, & Penentu Target Zakat")
 
 # ================= SIDEBAR: WHAT-IF & UPLOAD =================
 with st.sidebar:
-    st.header("⚙️ 1. Auto-Fill Data (Opsional)")
-    st.write("Upload data performa bulan lalu untuk mengisi angka otomatis.")
+    st.header("⚙️ 1. Auto-Fill Data")
+    st.write("Upload CSV untuk mengisi input secara otomatis (header harus sesuai parameter).")
     uploaded_file = st.file_uploader("Upload CSV Performa", type=['csv'])
+    
     if uploaded_file is not None:
-        st.success("Data berhasil dimuat! (Simulasi)")
+        try:
+            df_upload = pd.read_csv(uploaded_file)
+            updated_keys = 0
+            for key in default_params.keys():
+                if key in df_upload.columns:
+                    st.session_state[key] = float(df_upload[key].iloc[0])
+                    updated_keys += 1
+            if updated_keys > 0:
+                st.success(f"Berhasil memuat {updated_keys} parameter dari CSV.")
+            else:
+                st.warning("File CSV dibaca, tetapi tidak ada header kolom yang cocok dengan parameter.")
+        except Exception as e:
+            st.error(f"Gagal membaca file CSV: {e}")
     
     st.divider()
     
     st.header("⚠️ 2. What-If Analysis (Risiko)")
-    st.write("Simulasikan jika terjadi kondisi pasar yang memburuk (Peak Season).")
+    st.write("Simulasikan penurunan kondisi performa (misal di luar Peak Season).")
     risk_cpm = st.slider("Kenaikan Harga Iklan (CPM) %", 0, 100, 0) / 100
     risk_cr = st.slider("Penurunan Conversion Rate %", 0, 50, 0) / 100
 
@@ -41,36 +77,33 @@ tab_ads, tab_org, tab_wa, tab_email, tab_sum, tab_goal, tab_ab = st.tabs([
     "⚖️ A/B Skenario"
 ])
 
-# ================= INPUT KANAL =================
+# ================= TAB: PAID ADS =================
 with tab_ads:
     st.header("Kanal Paid Ads")
     c1, c2 = st.columns(2)
-    budget_ads = c1.number_input("Budget Iklan (Rp)", min_value=0, value=5000000, step=500000)
-    base_cpm = c1.number_input("Target CPM (Rp)", min_value=0, value=30000, step=1000)
-    freq_ads = c1.number_input("Target Frequency", min_value=0.0, value=1.8, step=0.1)
-    ctr_ads = c1.number_input("Target CTR (%)", min_value=0.0, value=3.0, step=0.1) / 100
+    budget_ads = c1.number_input("Budget Iklan (Rp)", min_value=0.0, value=st.session_state['budget_ads'], step=500000.0)
+    base_cpm = c1.number_input("Target CPM (Rp)", min_value=0.0, value=st.session_state['base_cpm'], step=1000.0)
+    freq_ads = c1.number_input("Target Frequency", min_value=0.0, value=st.session_state['freq_ads'], step=0.1)
+    ctr_ads = c1.number_input("Target CTR (%)", min_value=0.0, value=st.session_state['ctr_ads'], step=0.1) / 100
     
-    lp_rate_ads = c2.number_input("Target LP View Rate (%)", min_value=0.0, value=75.0, step=1.0) / 100
-    base_cr_ads = c2.number_input("Target CR Ads (%)", min_value=0.0, value=2.0, step=0.1) / 100
-    avg_don_ads = c2.number_input("Rata-rata Donasi Ads (Rp)", min_value=0, value=100000, step=10000)
+    lp_rate_ads = c2.number_input("Target LP View Rate (%)", min_value=0.0, value=st.session_state['lp_rate_ads'], step=1.0) / 100
+    base_cr_ads = c2.number_input("Target CR Ads (%)", min_value=0.0, value=st.session_state['base_cr_ads'], step=0.1) / 100
+    avg_don_ads = c2.number_input("Rata-rata Donasi Ads (Rp)", min_value=0.0, value=st.session_state['avg_don_ads'], step=10000.0)
 
-    # Kalkulasi Ads
     actual_cpm_ads = base_cpm * (1 + risk_cpm)
     actual_cr_ads = base_cr_ads * (1 - risk_cr)
     
-    imp_ads = (budget_ads / actual_cpm_ads) * 1000 if actual_cpm_ads > 0 else 0
-    reach_ads = imp_ads / freq_ads if freq_ads > 0 else 0
+    imp_ads = safe_div(budget_ads, actual_cpm_ads) * 1000
+    reach_ads = safe_div(imp_ads, freq_ads)
     clicks_ads = imp_ads * ctr_ads
-    cpc_ads = budget_ads / clicks_ads if clicks_ads > 0 else 0
+    cpc_ads = safe_div(budget_ads, clicks_ads)
     lp_views_ads = clicks_ads * lp_rate_ads
     donatur_ads = lp_views_ads * actual_cr_ads
     dana_ads = donatur_ads * avg_don_ads
-    cpa_ads = budget_ads / donatur_ads if donatur_ads > 0 else 0
-    roas_ads = dana_ads / budget_ads if budget_ads > 0 else 0
+    cpa_ads = safe_div(budget_ads, donatur_ads)
+    roas_ads = safe_div(dana_ads, budget_ads)
 
     st.divider()
-    
-    # KEMBALIKAN SUMMARY ANGKA (METRICS)
     st.subheader("Proyeksi Hasil Paid Ads")
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Estimasi Reach", f"{reach_ads:,.0f}")
@@ -80,42 +113,38 @@ with tab_ads:
 
     m5, m6, m7 = st.columns(3)
     m5.metric("Proyeksi CPC", f"Rp {cpc_ads:,.0f}")
-    m6.metric("Target CPA (Cost/Donor)", f"Rp {cpa_ads:,.0f}")
+    m6.metric("Target CPA (Cost/Donor)", format_cpa(cpa_ads, donatur_ads))
     m7.metric("Proyeksi ROAS", f"{roas_ads:.2f} x")
     
-    st.write("") # Spacer
-    # Funnel ditaro dalam Expander (Dropdown / Hiding)
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) Paid Ads"):
         fig_funnel_ads = go.Figure(go.Funnel(
-            y = ["Impressions (Jangkauan)", "Ad Clicks (Klik Iklan)", "LP Views (Masuk Web Zakat)", "Donatur Berhasil"],
+            y = ["Impressions", "Ad Clicks", "LP Views", "Donatur Berhasil"],
             x = [imp_ads, clicks_ads, lp_views_ads, donatur_ads],
             textinfo = "value+percent initial",
             marker = {"color": ["#4C78A8", "#72B7B2", "#F58518", "#E45756"]}
         ))
-        fig_funnel_ads.update_layout(title="Corong Konversi (Funnel) - Paid Ads", margin=dict(t=40, b=0))
+        fig_funnel_ads.update_layout(margin=dict(t=20, b=0))
         st.plotly_chart(fig_funnel_ads, use_container_width=True)
 
+# ================= TAB: ORGANIK =================
 with tab_org:
     st.header("Kanal Organic Content")
     c1, c2 = st.columns(2)
-    reach_org = c1.number_input("Estimasi Reach Organik", min_value=0, value=100000, step=5000)
-    interactions_org = c1.number_input("Total Interactions", min_value=0, value=5000, step=500)
-    pv_org = c1.number_input("Profile Visits", min_value=0, value=1000, step=100)
+    reach_org = c1.number_input("Estimasi Reach Organik", min_value=0.0, value=st.session_state['reach_org'], step=5000.0)
+    interactions_org = c1.number_input("Total Interactions", min_value=0.0, value=st.session_state['interactions_org'], step=500.0)
+    pv_org = c1.number_input("Profile Visits", min_value=0.0, value=st.session_state['pv_org'], step=100.0)
     
-    lc_org = c2.number_input("Link in Bio Clicks", min_value=0, value=300, step=50)
-    base_cr_org = c2.number_input("Target CR Organik (%)", min_value=0.0, value=5.0, step=0.5) / 100
-    avg_don_org = c2.number_input("Rata-rata Donasi Organik (Rp)", min_value=0, value=200000, step=25000)
+    lc_org = c2.number_input("Link in Bio Clicks", min_value=0.0, value=st.session_state['lc_org'], step=50.0)
+    base_cr_org = c2.number_input("Target CR Organik (%)", min_value=0.0, value=st.session_state['base_cr_org'], step=0.5) / 100
+    avg_don_org = c2.number_input("Rata-rata Donasi Organik (Rp)", min_value=0.0, value=st.session_state['avg_don_org'], step=25000.0)
 
-    # Kalkulasi Organik
     actual_cr_org = base_cr_org * (1 - risk_cr)
-    er_org = (interactions_org / reach_org) if reach_org > 0 else 0
-    ctr_org = (lc_org / pv_org) if pv_org > 0 else 0
+    er_org = safe_div(interactions_org, reach_org)
+    ctr_org = safe_div(lc_org, pv_org)
     donatur_org = lc_org * actual_cr_org
     dana_org = donatur_org * avg_don_org
 
     st.divider()
-    
-    # KEMBALIKAN SUMMARY ANGKA (METRICS)
     st.subheader("Proyeksi Hasil Organik")
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Engagement Rate (ER)", f"{er_org*100:.2f}%")
@@ -123,31 +152,29 @@ with tab_org:
     m3.metric("Estimasi Donatur", f"{donatur_org:,.1f}")
     m4.metric("Total Dana Terhimpun", f"Rp {dana_org:,.0f}")
     
-    st.write("") # Spacer
-    # Funnel ditaro dalam Expander
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) Organik"):
         fig_funnel_org = go.Figure(go.Funnel(
-            y = ["Reach (Jangkauan Konten)", "Profile Visits (Kunjungan Profil)", "Link Clicks (Klik Link Bio)", "Donatur Berhasil"],
+            y = ["Reach", "Profile Visits", "Link Clicks", "Donatur Berhasil"],
             x = [reach_org, pv_org, lc_org, donatur_org],
             textinfo = "value+percent initial",
             marker = {"color": ["#4C78A8", "#72B7B2", "#F58518", "#E45756"]}
         ))
-        fig_funnel_org.update_layout(title="Corong Konversi (Funnel) - Organic Content", margin=dict(t=40, b=0))
+        fig_funnel_org.update_layout(margin=dict(t=20, b=0))
         st.plotly_chart(fig_funnel_org, use_container_width=True)
 
+# ================= TAB: WA BLAST =================
 with tab_wa:
     st.header("Kanal WA Blast")
     c1, c2 = st.columns(2)
-    db_wa = c1.number_input("Total Database WA", min_value=0, value=10000, step=1000)
-    cpc_wa = c1.number_input("Biaya per Chat (Rp)", min_value=0, value=450, step=50)
-    del_wa = c1.number_input("Target Delivered WA (%)", min_value=0.0, value=95.0, step=1.0) / 100
-    read_wa = c1.number_input("Target Read Rate (%)", min_value=0.0, value=70.0, step=1.0) / 100
+    db_wa = c1.number_input("Total Database WA", min_value=0.0, value=st.session_state['db_wa'], step=1000.0)
+    cpc_wa = c1.number_input("Biaya per Chat (Rp)", min_value=0.0, value=st.session_state['cpc_wa'], step=50.0)
+    del_wa = c1.number_input("Target Delivered WA (%)", min_value=0.0, value=st.session_state['del_wa'], step=1.0) / 100
+    read_wa = c1.number_input("Target Read Rate (%)", min_value=0.0, value=st.session_state['read_wa'], step=1.0) / 100
     
-    ctr_wa = c2.number_input("Target CTR Link WA (%)", min_value=0.0, value=15.0, step=1.0) / 100
-    base_cr_wa = c2.number_input("Target CR WA (%)", min_value=0.0, value=20.0, step=1.0) / 100
-    avg_don_wa = c2.number_input("Rata-rata Donasi WA (Rp)", min_value=0, value=350000, step=25000)
+    ctr_wa = c2.number_input("Target CTR Link WA (%)", min_value=0.0, value=st.session_state['ctr_wa'], step=1.0) / 100
+    base_cr_wa = c2.number_input("Target CR WA (%)", min_value=0.0, value=st.session_state['base_cr_wa'], step=1.0) / 100
+    avg_don_wa = c2.number_input("Rata-rata Donasi WA (Rp)", min_value=0.0, value=st.session_state['avg_don_wa'], step=25000.0)
 
-    # Kalkulasi WA
     actual_cr_wa = base_cr_wa * (1 - risk_cr)
     total_cost_wa = db_wa * cpc_wa
     
@@ -156,11 +183,9 @@ with tab_wa:
     link_clicks_wa = msg_read * ctr_wa
     donatur_wa = link_clicks_wa * actual_cr_wa
     dana_wa = donatur_wa * avg_don_wa
-    roas_wa = dana_wa / total_cost_wa if total_cost_wa > 0 else 0
+    roas_wa = safe_div(dana_wa, total_cost_wa)
 
     st.divider()
-    
-    # KEMBALIKAN SUMMARY ANGKA (METRICS)
     st.subheader("Proyeksi Hasil WA Blast")
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Total Biaya Blast", f"Rp {total_cost_wa:,.0f}")
@@ -169,31 +194,29 @@ with tab_wa:
     m4.metric("Total Dana Terhimpun", f"Rp {dana_wa:,.0f}")
     st.metric("Proyeksi ROAS WA Blast", f"{roas_wa:.2f} x")
     
-    st.write("") # Spacer
-    # Funnel ditaro dalam Expander
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) WA Blast"):
         fig_funnel_wa = go.Figure(go.Funnel(
-            y = ["Database Nomor", "Pesan Terkirim (Delivered)", "Pesan Dibaca (Read)", "Klik Link (CTR)", "Donatur Berhasil"],
+            y = ["Database", "Delivered", "Read", "Clicks", "Donatur"],
             x = [db_wa, msg_delivered, msg_read, link_clicks_wa, donatur_wa],
             textinfo = "value+percent initial",
             marker = {"color": ["#4C78A8", "#54A24B", "#72B7B2", "#F58518", "#E45756"]}
         ))
-        fig_funnel_wa.update_layout(title="Corong Konversi (Funnel) - WA Blast", margin=dict(t=40, b=0))
+        fig_funnel_wa.update_layout(margin=dict(t=20, b=0))
         st.plotly_chart(fig_funnel_wa, use_container_width=True)
 
+# ================= TAB: EMAIL MARKETING =================
 with tab_email:
     st.header("Kanal Email Marketing")
     c1, c2 = st.columns(2)
-    db_em = c1.number_input("Total Database Email", min_value=0, value=40000, step=5000)
-    del_em = c1.number_input("Target Delivery Email (%)", min_value=0.0, value=98.0, step=1.0) / 100
-    open_em = c1.number_input("Target Open Rate (%)", min_value=0.0, value=22.0, step=1.0) / 100
-    ctr_em = c1.number_input("Target CTR Email (%)", min_value=0.0, value=4.0, step=0.5) / 100
+    db_em = c1.number_input("Total Database Email", min_value=0.0, value=st.session_state['db_em'], step=5000.0)
+    del_em = c1.number_input("Target Delivery Email (%)", min_value=0.0, value=st.session_state['del_em'], step=1.0) / 100
+    open_em = c1.number_input("Target Open Rate (%)", min_value=0.0, value=st.session_state['open_em'], step=1.0) / 100
+    ctr_em = c1.number_input("Target CTR Email (%)", min_value=0.0, value=st.session_state['ctr_em'], step=0.5) / 100
     
-    base_cr_em = c2.number_input("Target CR Email (%)", min_value=0.0, value=8.0, step=1.0) / 100
-    avg_don_em = c2.number_input("Rata-rata Donasi Email (Rp)", min_value=0, value=450000, step=50000)
-    cost_em = c2.number_input("Biaya Campaign Email (Rp)", min_value=0, value=200000, step=50000)
+    base_cr_em = c2.number_input("Target CR Email (%)", min_value=0.0, value=st.session_state['base_cr_em'], step=1.0) / 100
+    avg_don_em = c2.number_input("Rata-rata Donasi Email (Rp)", min_value=0.0, value=st.session_state['avg_don_em'], step=50000.0)
+    cost_em = c2.number_input("Biaya Campaign Email (Rp)", min_value=0.0, value=st.session_state['cost_em'], step=50000.0)
 
-    # Kalkulasi Email
     actual_cr_em = base_cr_em * (1 - risk_cr)
     
     em_delivered = db_em * del_em
@@ -201,11 +224,9 @@ with tab_email:
     em_clicks = em_opened * ctr_em
     donatur_em = em_clicks * actual_cr_em
     dana_em = donatur_em * avg_don_em
-    roas_em = dana_em / cost_em if cost_em > 0 else 0
+    roas_em = safe_div(dana_em, cost_em)
 
     st.divider()
-    
-    # KEMBALIKAN SUMMARY ANGKA (METRICS)
     st.subheader("Proyeksi Hasil Email Marketing")
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Email Dibuka", f"{em_opened:,.0f}")
@@ -214,30 +235,33 @@ with tab_email:
     m4.metric("Total Dana Terhimpun", f"Rp {dana_em:,.0f}")
     st.metric("Proyeksi ROAS Email", f"{roas_em:.2f} x")
     
-    st.write("") # Spacer
-    # Funnel ditaro dalam Expander
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) Email"):
         fig_funnel_em = go.Figure(go.Funnel(
-            y = ["Database Email", "Email Terkirim", "Email Dibuka (Open)", "Klik Link", "Donatur Berhasil"],
+            y = ["Database", "Terkirim", "Dibuka", "Klik Link", "Donatur"],
             x = [db_em, em_delivered, em_opened, em_clicks, donatur_em],
             textinfo = "value+percent initial",
             marker = {"color": ["#4C78A8", "#54A24B", "#72B7B2", "#F58518", "#E45756"]}
         ))
-        fig_funnel_em.update_layout(title="Corong Konversi (Funnel) - Email Marketing", margin=dict(t=40, b=0))
+        fig_funnel_em.update_layout(margin=dict(t=20, b=0))
         st.plotly_chart(fig_funnel_em, use_container_width=True)
 
-# ================= PERHITUNGAN TOTAL =================
+# ================= PERHITUNGAN TOTAL METRICS =================
 total_biaya = budget_ads + total_cost_wa + cost_em
 total_dana = dana_ads + dana_org + dana_wa + dana_em
 overall_donatur = donatur_ads + donatur_org + donatur_wa + donatur_em
+overall_roas = safe_div(total_dana, total_biaya)
 
 current_metrics = {
     "Biaya Total": total_biaya,
     "Dana Terhimpun": total_dana,
-    "Donatur": overall_donatur,
+    "Total Donatur": overall_donatur,
+    "Overall ROAS": overall_roas,
     "ROAS Ads": roas_ads,
     "ROAS WA": roas_wa,
-    "ROAS Email": roas_em
+    "ROAS Email": roas_em,
+    "Cost Ads": budget_ads,
+    "Cost WA": total_cost_wa,
+    "Cost Email": cost_em
 }
 
 # ================= TAB: EKSPOR & SUMMARY =================
@@ -246,9 +270,8 @@ with tab_sum:
     
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total Biaya Investasi", f"Rp {total_biaya:,.0f}")
-    c2.metric("Total Donatur", f"{current_metrics['Donatur']:,.1f}")
+    c2.metric("Total Donatur", f"{overall_donatur:,.1f}")
     c3.metric("Dana Terhimpun", f"Rp {total_dana:,.0f}")
-    overall_roas = total_dana / total_biaya if total_biaya > 0 else 0
     c4.metric("Overall ROAS", f"{overall_roas:.2f} x")
 
     df_summary = pd.DataFrame({
@@ -276,50 +299,92 @@ with tab_sum:
 # ================= TAB: GOAL SEEK =================
 with tab_goal:
     st.header("🎯 Kalkulator Mundur (Goal-Seek)")
-    st.write("Masukkan Target Penghimpunan ZIS Anda bulan ini, dan sistem akan menghitung mundur kebutuhan budget & database berdasar performa saat ini.")
+    st.write("Sistem menghitung mundur kebutuhan modal dari sisa target setelah dikurangi kontribusi Organik.")
     
-    target_dana = st.number_input("Target Total Penghimpunan (Rp)", min_value=0, value=1000000000, step=100000000)
+    target_dana = st.number_input("Target Total Penghimpunan (Rp)", min_value=0.0, value=1000000000.0, step=100000000.0)
     
-    st.subheader("Distribusi Target per Kanal (%)")
+    sisa_target_berbayar = max(0.0, target_dana - dana_org)
+    st.info(f"💡 Target total: Rp {target_dana:,.0f} | Proyeksi Organik (Rp 0 Cost): Rp {dana_org:,.0f}")
+    st.markdown(f"**Target Sisa yang dialokasikan ke Paid Channels:** Rp {sisa_target_berbayar:,.0f}")
+
+    st.subheader("Distribusi Sisa Target (%)")
     col_pct1, col_pct2, col_pct3 = st.columns(3)
     
-    pct_ads = col_pct1.number_input("Porsi Paid Ads (%)", min_value=0, max_value=100, value=50, step=5) / 100
-    pct_wa = col_pct2.number_input("Porsi WA Blast (%)", min_value=0, max_value=100, value=30, step=5) / 100
-    pct_em = col_pct3.number_input("Porsi Email (%)", min_value=0, max_value=100, value=20, step=5) / 100
+    pct_ads = col_pct1.number_input("Porsi Paid Ads (%)", min_value=0.0, max_value=100.0, value=50.0, step=5.0) / 100
+    pct_wa = col_pct2.number_input("Porsi WA Blast (%)", min_value=0.0, max_value=100.0, value=30.0, step=5.0) / 100
+    pct_em = col_pct3.number_input("Porsi Email (%)", min_value=0.0, max_value=100.0, value=20.0, step=5.0) / 100
     
-    if pct_ads + pct_wa + pct_em != 1.0:
-        st.warning("⚠️ Total Porsi harus tepat 100%")
+    if round(pct_ads + pct_wa + pct_em, 2) != 1.0:
+        st.error("⚠️ Total Porsi harus tepat 100%")
     else:
-        req_budget_ads = (target_dana * pct_ads) / roas_ads if roas_ads > 0 else 0
-        req_cost_wa = (target_dana * pct_wa) / roas_wa if roas_wa > 0 else 0
-        req_db_wa = req_cost_wa / cpc_wa if cpc_wa > 0 else 0
-        req_cost_em = (target_dana * pct_em) / roas_em if roas_em > 0 else 0
+        # Validasi zero-division / target tidak mungkin dicapai
+        warnings = []
+        if pct_ads > 0 and roas_ads <= 0: warnings.append("Paid Ads memiliki porsi target tetapi ROAS bernilai 0.")
+        if pct_wa > 0 and roas_wa <= 0: warnings.append("WA Blast memiliki porsi target tetapi ROAS bernilai 0.")
+        if pct_em > 0 and roas_em <= 0: warnings.append("Email memiliki porsi target tetapi ROAS bernilai 0.")
         
-        st.success("✅ Rekomendasi Strategi untuk Mencapai Target:")
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Kebutuhan Budget Ads", f"Rp {req_budget_ads:,.0f}")
-        m2.metric("Kebutuhan Database WA", f"{req_db_wa:,.0f} Kontak")
-        m3.metric("Kebutuhan Budget Email", f"Rp {req_cost_em:,.0f}")
+        if warnings:
+            for w in warnings:
+                st.warning(f"⚠️ {w} (Sesuaikan konversi di tab terkait untuk melanjutkan perhitungan).")
+        else:
+            req_budget_ads = safe_div(sisa_target_berbayar * pct_ads, roas_ads)
+            req_cost_wa = safe_div(sisa_target_berbayar * pct_wa, roas_wa)
+            req_db_wa = safe_div(req_cost_wa, cpc_wa)
+            req_cost_em = safe_div(sisa_target_berbayar * pct_em, roas_em)
+            
+            st.success("✅ Rekomendasi Alokasi Berdasarkan ROAS Saat Ini:")
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Kebutuhan Budget Ads", f"Rp {req_budget_ads:,.0f}")
+            m2.metric("Kebutuhan Database WA", f"{req_db_wa:,.0f} Kontak")
+            m3.metric("Kebutuhan Budget Email", f"Rp {req_cost_em:,.0f}")
 
 # ================= TAB: A/B SKENARIO =================
 with tab_ab:
     st.header("⚖️ Bandingkan Skenario A vs B")
     
     col_btn1, col_btn2 = st.columns(2)
-    if col_btn1.button("💾 Simpan Angka Saat Ini sbg Skenario A", use_container_width=True):
-        st.session_state['scen_a'] = current_metrics
-        st.success("Skenario A tersimpan!")
+    if col_btn1.button("💾 Simpan Sebagai Skenario A", use_container_width=True):
+        st.session_state['scen_a'] = current_metrics.copy()
+        st.success("Skenario A tersimpan.")
         
-    if col_btn2.button("💾 Simpan Angka Saat Ini sbg Skenario B", use_container_width=True):
-        st.session_state['scen_b'] = current_metrics
-        st.success("Skenario B tersimpan!")
+    if col_btn2.button("💾 Simpan Sebagai Skenario B", use_container_width=True):
+        st.session_state['scen_b'] = current_metrics.copy()
+        st.success("Skenario B tersimpan.")
 
     if st.session_state['scen_a'] and st.session_state['scen_b']:
         df_ab = pd.DataFrame([
-            {"Skenario": "Skenario A", "Dana Terhimpun (Rp)": st.session_state['scen_a']["Dana Terhimpun"], "Biaya Investasi (Rp)": st.session_state['scen_a']["Biaya Total"]},
-            {"Skenario": "Skenario B", "Dana Terhimpun (Rp)": st.session_state['scen_b']["Dana Terhimpun"], "Biaya Investasi (Rp)": st.session_state['scen_b']["Biaya Total"]}
+            {
+                "Skenario": "A", 
+                "Biaya Total (Rp)": st.session_state['scen_a']["Biaya Total"],
+                "Dana Terhimpun (Rp)": st.session_state['scen_a']["Dana Terhimpun"],
+                "Donatur": st.session_state['scen_a']["Total Donatur"],
+                "ROAS (x)": st.session_state['scen_a']["Overall ROAS"]
+            },
+            {
+                "Skenario": "B", 
+                "Biaya Total (Rp)": st.session_state['scen_b']["Biaya Total"],
+                "Dana Terhimpun (Rp)": st.session_state['scen_b']["Dana Terhimpun"],
+                "Donatur": st.session_state['scen_b']["Total Donatur"],
+                "ROAS (x)": st.session_state['scen_b']["Overall ROAS"]
+            }
         ])
-        fig_ab = px.bar(df_ab, x="Skenario", y=["Biaya Investasi (Rp)", "Dana Terhimpun (Rp)"], barmode="group", title="Perbandingan Biaya vs Hasil")
-        st.plotly_chart(fig_ab, use_container_width=True)
+        
+        c_chart, c_table = st.columns([3, 2])
+        
+        with c_chart:
+            # Melt dataframe for multi-bar grouped chart
+            df_melted = df_ab.melt(id_vars=["Skenario"], value_vars=["Biaya Total (Rp)", "Dana Terhimpun (Rp)"], var_name="Indikator", value_name="Nilai")
+            fig_ab = px.bar(df_melted, x="Skenario", y="Nilai", color="Indikator", barmode="group", title="Perbandingan Biaya vs Dana Terhimpun")
+            st.plotly_chart(fig_ab, use_container_width=True)
+            
+        with c_table:
+            st.markdown("**Rincian Parameter Skenario**")
+            st.dataframe(df_ab.set_index("Skenario").style.format({
+                "Biaya Total (Rp)": "Rp {:,.0f}",
+                "Dana Terhimpun (Rp)": "Rp {:,.0f}",
+                "Donatur": "{:,.1f}",
+                "ROAS (x)": "{:,.2f}"
+            }), use_container_width=True)
+            
     else:
-        st.info("Silakan simpan Skenario A dan Skenario B terlebih dahulu untuk melihat grafik perbandingan.")
+        st.info("Simpan Skenario A dan Skenario B untuk melihat komparasi metrik secara detail.")
