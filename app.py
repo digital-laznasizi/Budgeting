@@ -59,14 +59,31 @@ with tab_ads:
     actual_cr_ads = base_cr_ads * (1 - risk_cr)
     
     imp_ads = (budget_ads / actual_cpm_ads) * 1000 if actual_cpm_ads > 0 else 0
+    reach_ads = imp_ads / freq_ads if freq_ads > 0 else 0
     clicks_ads = imp_ads * ctr_ads
+    cpc_ads = budget_ads / clicks_ads if clicks_ads > 0 else 0
     lp_views_ads = clicks_ads * lp_rate_ads
     donatur_ads = lp_views_ads * actual_cr_ads
     dana_ads = donatur_ads * avg_don_ads
+    cpa_ads = budget_ads / donatur_ads if donatur_ads > 0 else 0
     roas_ads = dana_ads / budget_ads if budget_ads > 0 else 0
 
     st.divider()
     
+    # KEMBALIKAN SUMMARY ANGKA (METRICS)
+    st.subheader("Proyeksi Hasil Paid Ads")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Estimasi Reach", f"{reach_ads:,.0f}")
+    m2.metric("Estimasi Klik", f"{clicks_ads:,.0f}")
+    m3.metric("Proyeksi Donatur", f"{donatur_ads:,.1f}")
+    m4.metric("Total Dana Terhimpun", f"Rp {dana_ads:,.0f}")
+
+    m5, m6, m7 = st.columns(3)
+    m5.metric("Proyeksi CPC", f"Rp {cpc_ads:,.0f}")
+    m6.metric("Target CPA (Cost/Donor)", f"Rp {cpa_ads:,.0f}")
+    m7.metric("Proyeksi ROAS", f"{roas_ads:.2f} x")
+    
+    st.write("") # Spacer
     # Funnel ditaro dalam Expander (Dropdown / Hiding)
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) Paid Ads"):
         fig_funnel_ads = go.Figure(go.Funnel(
@@ -91,11 +108,22 @@ with tab_org:
 
     # Kalkulasi Organik
     actual_cr_org = base_cr_org * (1 - risk_cr)
+    er_org = (interactions_org / reach_org) if reach_org > 0 else 0
+    ctr_org = (lc_org / pv_org) if pv_org > 0 else 0
     donatur_org = lc_org * actual_cr_org
     dana_org = donatur_org * avg_don_org
 
     st.divider()
     
+    # KEMBALIKAN SUMMARY ANGKA (METRICS)
+    st.subheader("Proyeksi Hasil Organik")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Engagement Rate (ER)", f"{er_org*100:.2f}%")
+    m2.metric("Click-Through Rate (CTR)", f"{ctr_org*100:.2f}%")
+    m3.metric("Estimasi Donatur", f"{donatur_org:,.1f}")
+    m4.metric("Total Dana Terhimpun", f"Rp {dana_org:,.0f}")
+    
+    st.write("") # Spacer
     # Funnel ditaro dalam Expander
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) Organik"):
         fig_funnel_org = go.Figure(go.Funnel(
@@ -132,6 +160,16 @@ with tab_wa:
 
     st.divider()
     
+    # KEMBALIKAN SUMMARY ANGKA (METRICS)
+    st.subheader("Proyeksi Hasil WA Blast")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Total Biaya Blast", f"Rp {total_cost_wa:,.0f}")
+    m2.metric("Pesan Dibaca", f"{msg_read:,.0f}")
+    m3.metric("Estimasi Donatur", f"{donatur_wa:,.1f}")
+    m4.metric("Total Dana Terhimpun", f"Rp {dana_wa:,.0f}")
+    st.metric("Proyeksi ROAS WA Blast", f"{roas_wa:.2f} x")
+    
+    st.write("") # Spacer
     # Funnel ditaro dalam Expander
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) WA Blast"):
         fig_funnel_wa = go.Figure(go.Funnel(
@@ -167,6 +205,16 @@ with tab_email:
 
     st.divider()
     
+    # KEMBALIKAN SUMMARY ANGKA (METRICS)
+    st.subheader("Proyeksi Hasil Email Marketing")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Email Dibuka", f"{em_opened:,.0f}")
+    m2.metric("Estimasi Klik", f"{em_clicks:,.0f}")
+    m3.metric("Estimasi Donatur", f"{donatur_em:,.1f}")
+    m4.metric("Total Dana Terhimpun", f"Rp {dana_em:,.0f}")
+    st.metric("Proyeksi ROAS Email", f"{roas_em:.2f} x")
+    
+    st.write("") # Spacer
     # Funnel ditaro dalam Expander
     with st.expander("📊 Lihat Visualisasi Corong Konversi (Funnel) Email"):
         fig_funnel_em = go.Figure(go.Funnel(
