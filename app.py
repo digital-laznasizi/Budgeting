@@ -8,11 +8,9 @@ st.set_page_config(page_title="ZIS Digital Strategy Engine", layout="wide")
 
 # ================= HELPER FUNCTIONS =================
 def safe_div(numerator, denominator, default=0.0):
-    """Mencegah zero-division error dengan mengembalikan nilai default."""
     return numerator / denominator if denominator > 0 else default
 
 def format_cpa(cpa_value, donatur_count):
-    """Memformat CPA agar menunjukkan tak terhingga jika donatur 0."""
     if donatur_count > 0:
         return f"Rp {cpa_value:,.0f}"
     return "N/A (Tak terhingga)"
@@ -23,7 +21,6 @@ if 'scen_a' not in st.session_state:
 if 'scen_b' not in st.session_state:
     st.session_state['scen_b'] = None
 
-# Nilai default. Int (tanpa desimal) untuk absolut, Float untuk persentase/rasio.
 default_params = {
     'budget_ads': 5000000, 'base_cpm': 30000, 'freq_ads': 1.8, 'ctr_ads': 3.0, 'lp_rate_ads': 75.0, 'base_cr_ads': 2.0, 'avg_don_ads': 100000,
     'reach_org': 100000, 'interactions_org': 5000, 'pv_org': 1000, 'lc_org': 300, 'base_cr_org': 5.0, 'avg_don_org': 200000,
@@ -51,7 +48,6 @@ with st.sidebar:
             for key, default_val in default_params.items():
                 if key in df_upload.columns:
                     val = df_upload[key].iloc[0]
-                    # Format session state mengikuti tipe default (mencegah widget crash)
                     if isinstance(default_val, int):
                         st.session_state[key] = int(val)
                     else:
@@ -110,6 +106,8 @@ with tab_ads:
 
     st.divider()
     st.subheader("Proyeksi Hasil Paid Ads")
+    st.info(f"**Asumsi Input:** Budget: Rp {budget_ads:,.0f} | Target CPM: Rp {base_cpm:,.0f} | Freq: {freq_ads:g} | CTR: {ctr_ads*100:g}% | LP View: {lp_rate_ads*100:g}% | CR: {base_cr_ads*100:g}% | Donasi Avg: Rp {avg_don_ads:,.0f}")
+    
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Estimasi Reach", f"{reach_ads:,.0f}")
     m2.metric("Estimasi Klik", f"{clicks_ads:,.0f}")
@@ -151,6 +149,8 @@ with tab_org:
 
     st.divider()
     st.subheader("Proyeksi Hasil Organik")
+    st.info(f"**Asumsi Input:** Reach: {reach_org:,.0f} | Interactions: {interactions_org:,.0f} | Profile Visits: {pv_org:,.0f} | Link Clicks: {lc_org:,.0f} | CR: {base_cr_org*100:g}% | Donasi Avg: Rp {avg_don_org:,.0f}")
+    
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Engagement Rate (ER)", f"{er_org*100:.2f}%")
     m2.metric("Click-Through Rate (CTR)", f"{ctr_org*100:.2f}%")
@@ -192,6 +192,8 @@ with tab_wa:
 
     st.divider()
     st.subheader("Proyeksi Hasil WA Blast")
+    st.info(f"**Asumsi Input:** Database: {db_wa:,.0f} | Cost/Chat: Rp {cpc_wa:,.0f} | Delivered: {del_wa*100:g}% | Read: {read_wa*100:g}% | CTR: {ctr_wa*100:g}% | CR: {base_cr_wa*100:g}% | Donasi Avg: Rp {avg_don_wa:,.0f}")
+    
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Total Biaya Blast", f"Rp {total_cost_wa:,.0f}")
     m2.metric("Pesan Dibaca", f"{msg_read:,.0f}")
@@ -233,6 +235,8 @@ with tab_email:
 
     st.divider()
     st.subheader("Proyeksi Hasil Email Marketing")
+    st.info(f"**Asumsi Input:** Database: {db_em:,.0f} | Cost Campaign: Rp {cost_em:,.0f} | Delivery: {del_em*100:g}% | Open: {open_em*100:g}% | CTR: {ctr_em*100:g}% | CR: {base_cr_em*100:g}% | Donasi Avg: Rp {avg_don_em:,.0f}")
+    
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Email Dibuka", f"{em_opened:,.0f}")
     m2.metric("Estimasi Klik", f"{em_clicks:,.0f}")
@@ -281,13 +285,21 @@ with tab_sum:
 
     df_summary = pd.DataFrame({
         "Kanal Digital": ["Paid Ads", "Organic Content", "WA Blast", "Email Marketing"],
+        "Asumsi Input (Parameter Utama)": [
+            f"CPM: Rp {base_cpm:,.0f} | CTR: {ctr_ads*100:g}% | CR: {base_cr_ads*100:g}% | Avg Rp {avg_don_ads:,.0f}",
+            f"Reach: {reach_org:,.0f} | ER: {er_org*100:g}% | CR: {base_cr_org*100:g}% | Avg Rp {avg_don_org:,.0f}",
+            f"DB: {db_wa:,.0f} | Read: {read_wa*100:g}% | CR: {base_cr_wa*100:g}% | Avg Rp {avg_don_wa:,.0f}",
+            f"DB: {db_em:,.0f} | Open: {open_em*100:g}% | CR: {base_cr_em*100:g}% | Avg Rp {avg_don_em:,.0f}"
+        ],
         "Biaya (Rp)": [budget_ads, 0, total_cost_wa, cost_em],
+        "Proyeksi Donatur": [donatur_ads, donatur_org, donatur_wa, donatur_em],
         "Dana Terhimpun (Rp)": [dana_ads, dana_org, dana_wa, dana_em],
         "ROAS (x)": [roas_ads, 0, roas_wa, roas_em]
     })
     
     st.dataframe(df_summary.style.format({
         "Biaya (Rp)": "Rp {:,.0f}",
+        "Proyeksi Donatur": "{:,.1f}",
         "Dana Terhimpun (Rp)": "Rp {:,.0f}",
         "ROAS (x)": "{:,.2f}"
     }), use_container_width=True)
