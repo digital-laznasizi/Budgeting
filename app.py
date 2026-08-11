@@ -30,7 +30,7 @@ with st.sidebar:
     risk_cpm = st.slider("Kenaikan Harga Iklan (CPM) %", 0, 100, 0) / 100
     risk_cr = st.slider("Penurunan Conversion Rate %", 0, 50, 0) / 100
 
-# ================= TAB NAVIGATION (URUTAN BARU) =================
+# ================= TAB NAVIGATION =================
 tab_ads, tab_org, tab_wa, tab_email, tab_sum, tab_goal, tab_ab = st.tabs([
     "📢 Paid Ads", 
     "📱 Organik", 
@@ -54,6 +54,29 @@ with tab_ads:
     base_cr_ads = c2.number_input("Target CR Ads (%)", min_value=0.0, value=2.0, step=0.1) / 100
     avg_don_ads = c2.number_input("Rata-rata Donasi Ads (Rp)", min_value=0, value=100000, step=10000)
 
+    # Kalkulasi Ads
+    actual_cpm_ads = base_cpm * (1 + risk_cpm)
+    actual_cr_ads = base_cr_ads * (1 - risk_cr)
+    
+    imp_ads = (budget_ads / actual_cpm_ads) * 1000 if actual_cpm_ads > 0 else 0
+    clicks_ads = imp_ads * ctr_ads
+    lp_views_ads = clicks_ads * lp_rate_ads
+    donatur_ads = lp_views_ads * actual_cr_ads
+    dana_ads = donatur_ads * avg_don_ads
+    roas_ads = dana_ads / budget_ads if budget_ads > 0 else 0
+
+    st.divider()
+    
+    # Visualisasi Funnel Ads
+    fig_funnel_ads = go.Figure(go.Funnel(
+        y = ["Impressions (Jangkauan)", "Ad Clicks (Klik Iklan)", "LP Views (Masuk Web Zakat)", "Donatur Berhasil"],
+        x = [imp_ads, clicks_ads, lp_views_ads, donatur_ads],
+        textinfo = "value+percent initial",
+        marker = {"color": ["#4C78A8", "#72B7B2", "#F58518", "#E45756"]}
+    ))
+    fig_funnel_ads.update_layout(title="Corong Konversi (Funnel) - Paid Ads", margin=dict(t=40, b=0))
+    st.plotly_chart(fig_funnel_ads, use_container_width=True)
+
 with tab_org:
     st.header("Kanal Organic Content")
     c1, c2 = st.columns(2)
@@ -64,6 +87,23 @@ with tab_org:
     lc_org = c2.number_input("Link in Bio Clicks", min_value=0, value=300, step=50)
     base_cr_org = c2.number_input("Target CR Organik (%)", min_value=0.0, value=5.0, step=0.5) / 100
     avg_don_org = c2.number_input("Rata-rata Donasi Organik (Rp)", min_value=0, value=200000, step=25000)
+
+    # Kalkulasi Organik
+    actual_cr_org = base_cr_org * (1 - risk_cr)
+    donatur_org = lc_org * actual_cr_org
+    dana_org = donatur_org * avg_don_org
+
+    st.divider()
+    
+    # Visualisasi Funnel Organik
+    fig_funnel_org = go.Figure(go.Funnel(
+        y = ["Reach (Jangkauan Konten)", "Profile Visits (Kunjungan Profil)", "Link Clicks (Klik Link Bio)", "Donatur Berhasil"],
+        x = [reach_org, pv_org, lc_org, donatur_org],
+        textinfo = "value+percent initial",
+        marker = {"color": ["#4C78A8", "#72B7B2", "#F58518", "#E45756"]}
+    ))
+    fig_funnel_org.update_layout(title="Corong Konversi (Funnel) - Organic Content", margin=dict(t=40, b=0))
+    st.plotly_chart(fig_funnel_org, use_container_width=True)
 
 with tab_wa:
     st.header("Kanal WA Blast")
@@ -77,6 +117,29 @@ with tab_wa:
     base_cr_wa = c2.number_input("Target CR WA (%)", min_value=0.0, value=20.0, step=1.0) / 100
     avg_don_wa = c2.number_input("Rata-rata Donasi WA (Rp)", min_value=0, value=350000, step=25000)
 
+    # Kalkulasi WA
+    actual_cr_wa = base_cr_wa * (1 - risk_cr)
+    total_cost_wa = db_wa * cpc_wa
+    
+    msg_delivered = db_wa * del_wa
+    msg_read = msg_delivered * read_wa
+    link_clicks_wa = msg_read * ctr_wa
+    donatur_wa = link_clicks_wa * actual_cr_wa
+    dana_wa = donatur_wa * avg_don_wa
+    roas_wa = dana_wa / total_cost_wa if total_cost_wa > 0 else 0
+
+    st.divider()
+    
+    # Visualisasi Funnel WA
+    fig_funnel_wa = go.Figure(go.Funnel(
+        y = ["Database Nomor", "Pesan Terkirim (Delivered)", "Pesan Dibaca (Read)", "Klik Link (CTR)", "Donatur Berhasil"],
+        x = [db_wa, msg_delivered, msg_read, link_clicks_wa, donatur_wa],
+        textinfo = "value+percent initial",
+        marker = {"color": ["#4C78A8", "#54A24B", "#72B7B2", "#F58518", "#E45756"]}
+    ))
+    fig_funnel_wa.update_layout(title="Corong Konversi (Funnel) - WA Blast", margin=dict(t=40, b=0))
+    st.plotly_chart(fig_funnel_wa, use_container_width=True)
+
 with tab_email:
     st.header("Kanal Email Marketing")
     c1, c2 = st.columns(2)
@@ -89,38 +152,37 @@ with tab_email:
     avg_don_em = c2.number_input("Rata-rata Donasi Email (Rp)", min_value=0, value=450000, step=50000)
     cost_em = c2.number_input("Biaya Campaign Email (Rp)", min_value=0, value=200000, step=50000)
 
-# ================= ENGINE KALKULASI =================
-actual_cpm_ads = base_cpm * (1 + risk_cpm)
-actual_cr_ads = base_cr_ads * (1 - risk_cr)
-actual_cr_org = base_cr_org * (1 - risk_cr)
-actual_cr_wa = base_cr_wa * (1 - risk_cr)
-actual_cr_em = base_cr_em * (1 - risk_cr)
+    # Kalkulasi Email
+    actual_cr_em = base_cr_em * (1 - risk_cr)
+    
+    em_delivered = db_em * del_em
+    em_opened = em_delivered * open_em
+    em_clicks = em_opened * ctr_em
+    donatur_em = em_clicks * actual_cr_em
+    dana_em = donatur_em * avg_don_em
+    roas_em = dana_em / cost_em if cost_em > 0 else 0
 
-imp_ads = (budget_ads / actual_cpm_ads) * 1000 if actual_cpm_ads > 0 else 0
-clicks_ads = imp_ads * ctr_ads
-donatur_ads = clicks_ads * lp_rate_ads * actual_cr_ads
-dana_ads = donatur_ads * avg_don_ads
-roas_ads = dana_ads / budget_ads if budget_ads > 0 else 0
+    st.divider()
+    
+    # Visualisasi Funnel Email
+    fig_funnel_em = go.Figure(go.Funnel(
+        y = ["Database Email", "Email Terkirim", "Email Dibuka (Open)", "Klik Link", "Donatur Berhasil"],
+        x = [db_em, em_delivered, em_opened, em_clicks, donatur_em],
+        textinfo = "value+percent initial",
+        marker = {"color": ["#4C78A8", "#54A24B", "#72B7B2", "#F58518", "#E45756"]}
+    ))
+    fig_funnel_em.update_layout(title="Corong Konversi (Funnel) - Email Marketing", margin=dict(t=40, b=0))
+    st.plotly_chart(fig_funnel_em, use_container_width=True)
 
-donatur_org = lc_org * actual_cr_org
-dana_org = donatur_org * avg_don_org
-
-total_cost_wa = db_wa * cpc_wa
-donatur_wa = db_wa * del_wa * read_wa * ctr_wa * actual_cr_wa
-dana_wa = donatur_wa * avg_don_wa
-roas_wa = dana_wa / total_cost_wa if total_cost_wa > 0 else 0
-
-donatur_em = db_em * del_em * open_em * ctr_em * actual_cr_em
-dana_em = donatur_em * avg_don_em
-roas_em = dana_em / cost_em if cost_em > 0 else 0
-
+# ================= PERHITUNGAN TOTAL =================
 total_biaya = budget_ads + total_cost_wa + cost_em
 total_dana = dana_ads + dana_org + dana_wa + dana_em
+overall_donatur = donatur_ads + donatur_org + donatur_wa + donatur_em
 
 current_metrics = {
     "Biaya Total": total_biaya,
     "Dana Terhimpun": total_dana,
-    "Donatur": donatur_ads + donatur_org + donatur_wa + donatur_em,
+    "Donatur": overall_donatur,
     "ROAS Ads": roas_ads,
     "ROAS WA": roas_wa,
     "ROAS Email": roas_em
